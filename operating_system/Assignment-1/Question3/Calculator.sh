@@ -10,9 +10,10 @@ while IFS= read -r line || [ -n "$line" ]; do
         x=$(echo "$line" | awk '{print $1}')
         y=$(echo "$line" | awk '{print $2}')
         operation=$(echo "$line" | awk '{print $3}')
+        #echo "$operation"
         if [ "$operation" = "xor" ]; then       
             result=$((y^x))
-            echo "$result" >> "$out_file"
+            echo "$result" > "$out_file"
         elif [ "$operation" = "product" ]; then
             result=$((x * y))
             echo "$result" >> "$out_file"
