@@ -29,4 +29,4 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
 done < "/mnt/c/Sahil/Python/Sahil/operating_system/Assignment-1/Question3/input.txt"
 
-#working 
+#working now
