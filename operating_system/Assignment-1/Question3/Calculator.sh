@@ -5,6 +5,8 @@ out_file="$out_directory/output.txt"
 
 mkdir -p "$out_directory"
 
+> "$out_file"
+
 while IFS= read -r line || [ -n "$line" ]; do
     if [ -n "$line" ]; then
         x=$(echo "$line" | awk '{print $1}')
@@ -13,7 +15,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         #echo "$operation"
         if [ "$operation" = "xor" ]; then       
             result=$((y^x))
-            echo "$result" > "$out_file"
+            echo "$result" >> "$out_file"
         elif [ "$operation" = "product" ]; then
             result=$((x * y))
             echo "$result" >> "$out_file"
