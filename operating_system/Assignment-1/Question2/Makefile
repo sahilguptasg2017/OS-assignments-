@@ -1,10 +1,4 @@
-all:date dir word
+all:shell
 
-date: date.c
-	gcc -o date date.c
-
-dir:dir.c
-	gcc -o dir dir.c
-
-word:word.c
-	gcc -o word word.c	
+shell:shell.c
+	gcc -o shell shell.c
