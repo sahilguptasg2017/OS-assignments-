@@ -19,7 +19,7 @@ int countn(const char *filename) {
         char *token = strtok(buffer, " ");
         while (token != NULL) {
             //printf("%c\n",token[1]);
-            if(token[1]=='n' && token[0]=='\\' ){
+            if(token[1]=='n' && token[0]=='\\' && strlen(token)==2){
                 wordCount++;
             }
             token = strtok(NULL, " ");
