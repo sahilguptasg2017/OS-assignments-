@@ -2,6 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Launch",
+      "program": "${workspaceFolder}/<program>",
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "name": "Launch Extension",
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "npm",
+      "request": "launch",
+      "type": "extensionHost"
+    },
+
+
+
+
+
+    {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
