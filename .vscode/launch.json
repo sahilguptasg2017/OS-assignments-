@@ -21,11 +21,6 @@
       "request": "launch",
       "type": "extensionHost"
     },
-
-
-
-
-
     {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
