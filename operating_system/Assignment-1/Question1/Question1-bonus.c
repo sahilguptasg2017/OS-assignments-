@@ -26,7 +26,7 @@ int main(int argc,char *argv[]){
         for(int i=1;i<=4;i++){
             n*=i;
         }
-        wait(NULL);
+        wait(NULL); 
         printf("Child is calculating , Factorial of 4 is: %d\n",n);
     }
     else{

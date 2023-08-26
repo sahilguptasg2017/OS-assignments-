@@ -1,5 +1,5 @@
 #!/bin/bash
-out_directory="/home/sahilg/OS/OS-assignments-/operating_system/Assignment-1/Question3/Result"
+out_directory="/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question3/Result"
 
 out_file="$out_directory/output.txt"
 
@@ -27,4 +27,4 @@ while IFS= read -r line || [ -n "$line" ]; do
             fi
         fi
     fi
-done < "/home/sahilg/OS/OS-assignments-/operating_system/Assignment-1/Question3/input.txt"
+done < "/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question3/input.txt"
