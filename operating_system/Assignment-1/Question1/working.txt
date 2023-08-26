@@ -5,7 +5,7 @@ This text files expalins the working of Question1:
     now we store the parent's pid in the form of integer in the variable parent_pid
     we then call fork system call to create a new child of the process and store the child's pid in variable rc
     Now, we give 3 conditions to the , that is 
-    if rc<0 , then no child is created because rc will be >0 for parent process (as child must have some pid) else it would be 0 for child process and child doesn't have any child(so it results in rc value of 0)
+    if rc<0 , then no child is created because rc will be > 0 for parent process (as child must have some pid) else it would be 0 for child process and child doesn't have any child(so it results in rc value of 0)
     So, to have the order of A,C,D,B  we make the parent wait for the child using the wait() system call
     So, the process goes into rc>0 condtion and is directed to the child's process that is when rc = 0 condition 
     Now, the child prints the statement C by valling getpid() function in it and then prints the statement D by the parent_pid value which we stored at the starting of the porgram 
@@ -13,7 +13,8 @@ This text files expalins the working of Question1:
     Now, the statement B is printed and we get the statements printed in the order A,C,D,B
 
 
-(2-using vfork) In this part we first make the function which prints 
+(2-(using vfork)) In this part we first make the function which prints the first n elements of the fibonacci series on passign the value of count = n
+                                                       
 
 
 
