@@ -14,7 +14,7 @@ This text files expalins the working of Question1:
 
 
 (2-(using vfork)) In this part we first make the function which prints the first n elements of the fibonacci series on passign the value of count = n
-                                                       
+                    
 
 
 

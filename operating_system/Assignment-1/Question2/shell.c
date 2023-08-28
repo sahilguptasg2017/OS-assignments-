@@ -92,13 +92,17 @@ int countWordsInFile(const char *file1, int n_flag) {
     }
 }
 int main(int argc,char* argv[]) {
+    while(1){
         char input[1000];
         printf("$ ");
         if (!fgets(input, sizeof(input), stdin)) {
             exit(0);
         }
+        //printf("%s",input);
         input[strcspn(input, "\n")] = '\0';
-
+        if(input[0]=='\0'){
+            continue;
+        }
         char *token = strtok(input, " ");
         char *command = token;
         char *arguments[10];
@@ -156,16 +160,24 @@ int main(int argc,char* argv[]) {
             else if (strcmp(command, "dir") == 0) {
                 int r_flag=0;
                 int v_flag=0;
-                for(int i=0;i<arg_count;i++){
+                int wrong_option_flag=0;
+                for(int i=0;i<arg_count-1;i++){
                     if(strcmp(arguments[i], "-r")==0){
                         r_flag=1;
                     }
-                    if(strcmp(arguments[i],"-v")==0){
+                    else if(strcmp(arguments[i],"-v")==0){
                         v_flag=1;
                     }
+                    else{
+                        printf("wrong option given\n");
+                        wrong_option_flag=1;
+                    }
+                }
+                if(wrong_option_flag){
+                    continue;
                 }
                 if(r_flag == 1 && v_flag == 1){
-                    printf("Error:more than 1 options used");
+                    printf("Error:more than 1 options used\n");
                     exit(1);
                 }
                 char* directory[5];
@@ -183,16 +195,24 @@ int main(int argc,char* argv[]) {
             else if (strcmp(command, "date")==0){
                 int d1_flag=0;
                 int R_flag=0;
-                for(int i=0;i<arg_count;i++){
+                int wrong_option_flag=0;
+                for(int i=0;i<arg_count-1;i++){
                     if(strcmp(arguments[i], "-d")==0){
                         d1_flag=1;
                     }
-                    if(strcmp(arguments[i], "-R")==0){
+                    else if(strcmp(arguments[i], "-R")==0){
                         R_flag=1;
                     }
+                    else{
+                        printf("wrong option given\n");
+                        wrong_option_flag=1;
+                    }
+                }
+                if(wrong_option_flag){
+                    continue;
                 }
                 if(d1_flag==1 && R_flag==1){
-                    printf("used more than 1 flag");
+                    printf("used more than 1 flag\n");
                     exit(1);
                 }
                 char* directory[5];
@@ -219,7 +239,8 @@ int main(int argc,char* argv[]) {
             char *word_args[2];
                 word_args[0] = "/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question2/./shell";
                 word_args[1] = NULL;
-            execvp(word_args[0], word_args);
+            //execvp(word_args[0], word_args);
         }
+    }    
     return 0;
 }

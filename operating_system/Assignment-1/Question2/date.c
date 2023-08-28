@@ -14,11 +14,13 @@ void date(const char *file_name, int time, int rfc) {
 
     if (time) {
         printf("Time described by STRING: %s", asctime(localtime(&file_stat.st_mtime)));
-    } else if (rfc) {
+    } 
+    else if (rfc) {
         char butt[80];
         strftime(butt, sizeof(butt), "%a, %d %b %Y %T %z", localtime(&file_stat.st_mtime)); // local time mainly work krta hai on the basis of time zone
         printf("Date and time in RFC 5322 format: %s\n", butt);
-    } else {
+    } 
+    else {
         printf("Last modified date and time: %s", asctime(localtime(&file_stat.st_mtime)));
     }
 }
