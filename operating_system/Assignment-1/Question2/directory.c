@@ -4,32 +4,52 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
 
 void cd(const char *dir_name, int v_flag, int r_flag) {
-    if (mkdir(dir_name, 0777) == -1) {
-        if (r_flag) {
-            if (v_flag) {
-                printf("Removing existing directory: %s\n", dir_name);
-            }
-            if (rmdir(dir_name) == -1) {
-                perror("Error removing directory");
+    struct stat st;
+    if (stat(dir_name, &st) == 0) {
+        if (S_ISDIR(st.st_mode)) {
+            if (r_flag) {
+                DIR *dir = opendir(dir_name);
+                struct dirent *entry;
+                while ((entry = readdir(dir)) != NULL) {
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                        char path[PATH_MAX];
+                        snprintf(path, sizeof(path), "%s/%s", dir_name, entry->d_name);
+                        remove(path);
+                    }
+                }
+                closedir(dir);
+
+                if (rmdir(dir_name) == -1) {
+                    perror("Error removing directory");
+                    exit(1);
+                }
+            } else {
+                printf("Directory already exists: %s\n", dir_name);
                 exit(1);
             }
-            mkdir(dir_name, 0777);
         } else {
-            printf("Directory already exists: %s\n", dir_name);
+            fprintf(stderr, "%s is not a directory\n", dir_name);
             exit(1);
         }
+    }
+
+    if (mkdir(dir_name, 0777) == -1) {
+        perror("Error creating directory");
+        exit(1);
     }
 
     if (v_flag) {
         printf("Directory created: %s\n", dir_name);
     }
-    
+
     if (chdir(dir_name) == -1) {
         perror("Error changing directory");
         exit(1);
     }
+
     if (v_flag) {
         printf("Changed to directory: %s\n", dir_name);
     }
