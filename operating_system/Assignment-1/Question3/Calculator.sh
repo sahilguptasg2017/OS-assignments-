@@ -15,15 +15,15 @@ while IFS= read -r line || [ -n "$line" ]; do
         #echo "$operation"
         if [ "$operation" = "xor" ]; then       
             result=$((y^x))
-            echo "$result" >> "$out_file"
+            echo "Result of xor $x $y : $result" >> "$out_file"
         elif [ "$operation" = "product" ]; then
             result=$((x * y))
-            echo "$result" >> "$out_file"
+            echo "Result of product $x $y : $result" >> "$out_file"
         else
             if [ "$x" -gt "$y" ]; then
-                echo "$x" >> "$out_file"
+                echo "Result of compare $x $y : $x" >> "$out_file"
             else 
-                echo "$y" >> "$out_file"
+                echo "Result of compare $x $y : $y" >> "$out_file"
             fi
         fi
     fi

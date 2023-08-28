@@ -113,6 +113,9 @@ int main(int argc,char* argv[]) {
                 arguments[arg_count++] = token;
             }
         }
+        if(strcmp(command, "exit")==0){
+            break;
+        }
         int rc=fork();
         if(rc<0){
             printf("fork failed");
@@ -224,12 +227,12 @@ int main(int argc,char* argv[]) {
                 execvp(directory[0], directory);
                 perror("execvp failed");
                 exit(1);
+            
             }
-
             else{
-                printf("ERROR:command not found: %s\n",command);
+                printf("Error : wrong command given : %s\n",command);
             }
-
+            exit(0);
         }   
         else {
             wait(NULL);
