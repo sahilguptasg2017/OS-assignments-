@@ -1,4 +1,3 @@
-#include <linux/limits.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -102,6 +101,9 @@ int main(int argc,char* argv[]) {
         if((getcwd(currenDir, sizeof(currenDir)) != NULL)){
             printf("%s :",currenDir);   
         }
+        else{
+            perror("Error:getcwd error");
+        }
         
         if (!fgets(input, sizeof(input), stdin)) {
             exit(0);
@@ -157,7 +159,7 @@ int main(int argc,char* argv[]) {
                         printf("File not found\n");
                     }
                 } 
-                else {
+                else if(n_flag) {
                     FILE *file = fopen(arguments[arg_count - 1], "r");
                     if (file){
                         countWords(arguments[arg_count - 1], n_flag);
@@ -167,6 +169,10 @@ int main(int argc,char* argv[]) {
                         printf("File not found\n");
                     }
                 }
+                else {
+                    printf("Error: wrong option\n");
+                }
+                
             } 
             else if (strcmp(command, "dir") == 0) {
                 int r_flag=0;
