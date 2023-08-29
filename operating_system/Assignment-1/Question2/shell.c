@@ -1,9 +1,11 @@
+#include <linux/limits.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <limits.h>
 #include <unistd.h> 
 #include <sys/wait.h>
 
@@ -81,7 +83,7 @@ int countWordsInFile(const char *file1, int n_flag) {
     //  printf("Number of words: %d\n", count);
     }
     if(word_flag){
-            count++;
+        count++;
     }
     if(n_flag){
         return count-countn(file1);
@@ -95,6 +97,12 @@ int main(int argc,char* argv[]) {
     while(1){
         char input[1000];
         printf("$ ");
+        char currenDir[PATH_MAX];
+
+        if((getcwd(currenDir, sizeof(currenDir)) != NULL)){
+            printf("%s :",currenDir);   
+        }
+        
         if (!fgets(input, sizeof(input), stdin)) {
             exit(0);
         }

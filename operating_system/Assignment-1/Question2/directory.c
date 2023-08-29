@@ -1,3 +1,4 @@
+#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -6,26 +7,41 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+void delete_directory(const char *dir_name) {
+    DIR *dir = opendir(dir_name);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                char path[PATH_MAX];
+                snprintf(path, sizeof(path), "%s/%s", dir_name, entry->d_name);
+
+                struct stat st;
+                if (stat(path, &st) == 0) {
+                    if (S_ISDIR(st.st_mode)) {
+                        delete_directory(path); 
+                    } 
+                    else {
+                        remove(path); 
+                    }
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    if (rmdir(dir_name) == -1) {
+        perror("Error removing directory");
+        exit(1);
+    }
+}
+
 void cd(const char *dir_name, int v_flag, int r_flag) {
     struct stat st;
     if (stat(dir_name, &st) == 0) {
         if (S_ISDIR(st.st_mode)) {
             if (r_flag) {
-                DIR *dir = opendir(dir_name);
-                struct dirent *entry;
-                while ((entry = readdir(dir)) != NULL) {
-                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                        char path[PATH_MAX];
-                        snprintf(path, sizeof(path), "%s/%s", dir_name, entry->d_name);
-                        remove(path);
-                    }
-                }
-                closedir(dir);
-
-                if (rmdir(dir_name) == -1) {
-                    perror("Error removing directory");
-                    exit(1);
-                }
+                delete_directory(dir_name);
             } else {
                 printf("Directory already exists: %s\n", dir_name);
                 exit(1);
@@ -42,7 +58,7 @@ void cd(const char *dir_name, int v_flag, int r_flag) {
     }
 
     if (v_flag) {
-        printf("Directory created: %s\n", dir_name);
+        printf("Directory created : %s\n", dir_name );
     }
 
     if (chdir(dir_name) == -1) {
@@ -51,7 +67,14 @@ void cd(const char *dir_name, int v_flag, int r_flag) {
     }
 
     if (v_flag) {
-        printf("Changed to directory: %s\n", dir_name);
+        char currenDir[PATH_MAX];
+        if(getcwd(currenDir,sizeof(currenDir))!=NULL){
+            printf("path changed to: %s\n",currenDir);
+        }
+        else{
+            perror("getcwd error");
+        }
+        //printf("Changed to directory: %s\n", dir_name);
     }
 }
 
