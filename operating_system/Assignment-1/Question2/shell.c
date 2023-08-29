@@ -109,7 +109,7 @@ int main(int argc,char* argv[]) {
         char currenDir[PATH_MAX];
 
         if((getcwd(currenDir, sizeof(currenDir)) != NULL)){
-            printf("%s :",currenDir);   
+            printf("%s: ",currenDir);   
         }
         else{
             perror("Error:getcwd error");
