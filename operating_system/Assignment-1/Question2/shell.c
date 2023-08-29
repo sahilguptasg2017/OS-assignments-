@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -8,27 +9,35 @@
 #include <unistd.h> 
 #include <sys/wait.h>
 
-int countn(const char *filename) {
+int countNewlinesWithSpace(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Error opening file");
         return -1;
     }
-    int wordCount = 0;
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), file)) {
-        char *token = strtok(buffer, " ");
-        while (token != NULL) {
-            //printf("%c\n",token[1]);
-            if(token[1]=='n' && token[0]=='\\' && strlen(token)==2){
-                wordCount++;
-            }
-            token = strtok(NULL, " ");
+
+    int newlineCount = 0;
+    int flag=0;
+    int character;
+
+    while ((character = fgetc(file)) != EOF) {
+        if(character==32){
+            flag=1;
+        }
+        else if(flag==1 && character==10){
+            newlineCount++;
+            //flag=0;
+        }
+        else if(character==10){
+            flag=1;
+        }
+        else{
+            flag=0;
         }
     }
 
     fclose(file);
-    return wordCount;
+    return newlineCount;
 }
 
 void countWords(const char *file1, int n_flag) {
@@ -38,6 +47,7 @@ void countWords(const char *file1, int n_flag) {
     int count_1=0;
     FILE *file = fopen(file1, "r");
     while ((chr = fgetc(file)) != EOF) {
+        // printf("%d\n",chr);
         if(isspace(chr)){
             if(word_flag){
                 count++;
@@ -54,11 +64,11 @@ void countWords(const char *file1, int n_flag) {
             count++;
     }
     if(n_flag){
-        printf("The number of words are: %d\n",count-countn(file1));
+        printf("The number of words are: %d\n",count);
 
     }
     else{
-        printf("The number of words are: %d\n",count);
+        printf("The number of words are: %d\n",count+countNewlinesWithSpace(file1));
     }
 }
 
@@ -85,7 +95,7 @@ int countWordsInFile(const char *file1, int n_flag) {
         count++;
     }
     if(n_flag){
-        return count-countn(file1);
+        return count-countNewlinesWithSpace(file1);
 
     }
     else{
@@ -134,45 +144,64 @@ int main(int argc,char* argv[]) {
             if(strcmp(command, "word") == 0) {
                 int n_flag = 0;
                 int d_flag = 0;
+                int wrong_flag=0;
                 for (int i = 0; i < arg_count; i++) {
                     if (strcmp(arguments[i], "-n") == 0) {
                         n_flag = 1;
-                    }if (strcmp(arguments[i], "-d") == 0) {
+                    }
+                    else if (strcmp(arguments[i], "-d") == 0) {
                         d_flag = 1;
                     }
-                }
-                if(d_flag==1 && n_flag == 1 ){
-                    printf("used more than 1 flag\n");
-                    exit(1);
-                }
-                if (d_flag) {
-                    FILE *file1 = fopen(arguments[arg_count - 2], "r");
-                    FILE *file2 = fopen(arguments[arg_count - 1], "r");
-                    if (file1 && file2) {
-                        int count1 = countWordsInFile(arguments[arg_count - 2], n_flag);
-                        int count2 = countWordsInFile(arguments[arg_count - 1], n_flag);
-                        printf("Difference in word count: %d\n", abs(count1 - count2));
-                        fclose(file1);
-                        fclose(file2);
-                    } 
-                    else {
-                        printf("File not found\n");
-                    }
-                } 
-                else if(n_flag) {
-                    FILE *file = fopen(arguments[arg_count - 1], "r");
-                    if (file){
-                        countWords(arguments[arg_count - 1], n_flag);
-                        fclose(file);
-                    } 
-                    else {
-                        printf("File not found\n");
+                    else{
+                        if(arguments[i][0]=='-'){
+                            wrong_flag=1;
+                        }
                     }
                 }
-                else {
-                    printf("Error: wrong option\n");
+                //printf("%d\n",wrong_flag);
+                if(wrong_flag){
+                    printf("wrong option given\n");
                 }
-                
+                else{
+                    if(d_flag==1 && n_flag == 1 ){
+                        printf("used more than 1 flag\n");
+                        exit(1);
+                    }
+                    if (d_flag) {
+                        FILE *file1 = fopen(arguments[arg_count - 2], "r");
+                        FILE *file2 = fopen(arguments[arg_count - 1], "r");
+                        if (file1 && file2) {
+                            int count1 = countWordsInFile(arguments[arg_count - 2], n_flag);
+                            int count2 = countWordsInFile(arguments[arg_count - 1], n_flag);
+                            printf("Difference in word count: %d\n", abs(count1 - count2));
+                            fclose(file1);
+                            fclose(file2);
+                        } 
+                        else {
+                            printf("File not found\n");
+                        }
+                    } 
+                    else if(n_flag) {
+                        FILE *file = fopen(arguments[arg_count - 1], "r");
+                        if (file){
+                            countWords(arguments[arg_count - 1], n_flag);
+                            fclose(file);
+                        } 
+                        else {
+                            printf("File not found\n");
+                        }
+                    }
+                    else{
+                        FILE *file = fopen(arguments[arg_count - 1], "r");
+                        if (file){
+                            countWords(arguments[arg_count - 1], n_flag);
+                            fclose(file);
+                        } 
+                        else {
+                            printf("File not found\n");
+                        }
+                    }
+                }
             } 
             else if (strcmp(command, "dir") == 0) {
                 int r_flag=0;
@@ -212,6 +241,7 @@ int main(int argc,char* argv[]) {
             else if (strcmp(command, "date")==0){
                 int d1_flag=0;
                 int R_flag=0;
+                char* day = NULL;
                 int wrong_option_flag=0;
                 for(int i=0;i<arg_count-1;i++){
                     if(strcmp(arguments[i], "-d")==0){
@@ -219,6 +249,16 @@ int main(int argc,char* argv[]) {
                     }
                     else if(strcmp(arguments[i], "-R")==0){
                         R_flag=1;
+                    }
+                    else if(arguments[i][0]!='-'){
+                        if(d1_flag && day==NULL){
+                            day=arguments[i];
+                        }
+                        else {
+                            printf("arguments are either too less or too many\n");
+                            wrong_option_flag=1;
+                            break;
+                        }
                     }
                     else{
                         printf("wrong option given\n");
@@ -232,12 +272,16 @@ int main(int argc,char* argv[]) {
                     printf("used more than 1 flag\n");
                     exit(1);
                 }
-                char* directory[5];
+                if(day==NULL){
+                    day="asdf";
+                }
+                char* directory[6];
                 directory[0] = "/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question2/./date";
                 directory[1] = arguments[arg_count-1];
                 directory[2] = d1_flag ? "1" : "0";
                 directory[3] = R_flag  ? "1":"0";
-                directory[4]=NULL;
+                directory[4]=day;
+                directory[5]=NULL;
                 execvp(directory[0], directory);
                 perror("execvp failed");
                 exit(1);
