@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 
 struct DateTime {
-    int wk;      // Change to integer type
+    int wk;      
     int year;
     int month;
     int day;
@@ -14,20 +14,18 @@ struct DateTime {
     int second;
 };
 
-// Function to get the current date and time adjusted by the relative time
-struct DateTime getAdjustedDateTime(struct stat f,const char* relative_time) {
+struct DateTime date_change(struct stat f,const char* relative_time) {
     struct DateTime dt;
     time_t current_time = time(NULL);
     struct tm* local_time = localtime(&f.st_mtime);
     int y,u,o;
     if (strcmp(relative_time, "yesterday") == 0) {
-        y=1; // Subtract 1 day (60 seconds * 60 minutes * 24 hours)
+        y=1; 
     } else if (strcmp(relative_time, "tomorrow") == 0) {
-        u=1; // Add 1 day
+        u=1; 
     } else if (strcmp(relative_time, "last year") == 0) {
-        o=1;// Subtract 1 year
-    } // Add more cases for other relative time strings if needed
-    
+        o=1;
+    } 
     struct tm* adjusted_time = localtime(&f.st_mtime);
     dt.year = adjusted_time->tm_year + 1900;
     if (o){
@@ -39,19 +37,16 @@ struct DateTime getAdjustedDateTime(struct stat f,const char* relative_time) {
     	dt.wk-=1;
     	dt.day = adjusted_time->tm_mday;
     	dt.day-=1;
-    	//printf("%d\n",dt.day);
     }
     else{
     	dt.wk = adjusted_time->tm_wday;
     	dt.wk=adjusted_time->tm_mday;
-    } // Store day of the week as an integer
+    } 
     if (u){
     	dt.wk = adjusted_time->tm_wday;
     	dt.wk+=1;
-    	//printf("%d\n",dt.wk);
     	dt.day = adjusted_time->tm_mday;
     	dt.day+=1;
-    	//printf("%d\n",dt.day);
     }
     dt.hour = adjusted_time->tm_hour;
     dt.minute = adjusted_time->tm_min;
@@ -85,7 +80,7 @@ void date(const char* file_name, int time, int rfc, const char* a) {
             dt.minute = file_stat.st_mtime;
             dt.second = file_stat.st_mtime;
         } else {
-            dt = getAdjustedDateTime(file_stat,a);
+            dt = date_change(file_stat,a);
         }
         char* s=asctime(localtime(&file_stat.st_mtime));
         // Create an array to store day names

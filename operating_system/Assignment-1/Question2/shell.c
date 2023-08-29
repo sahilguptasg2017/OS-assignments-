@@ -171,8 +171,8 @@ int main(int argc,char* argv[]) {
                         FILE *file1 = fopen(arguments[arg_count - 2], "r");
                         FILE *file2 = fopen(arguments[arg_count - 1], "r");
                         if (file1 && file2) {
-                            int count1 = countWordsInFile(arguments[arg_count - 2], n_flag);
-                            int count2 = countWordsInFile(arguments[arg_count - 1], n_flag);
+                            int count1 = countWordsInFile(arguments[arg_count - 2], n_flag)+countNewlinesWithSpace(arguments[arg_count-2]);
+                            int count2 = countWordsInFile(arguments[arg_count - 1], n_flag)+countNewlinesWithSpace(arguments[arg_count-1]);
                             printf("Difference in word count: %d\n", abs(count1 - count2));
                             fclose(file1);
                             fclose(file2);
@@ -297,9 +297,9 @@ int main(int argc,char* argv[]) {
             if(strcmp(command, "dir")==0){
                 chdir(arguments[arg_count-1]);
             }
-            char *word_args[2];
-                word_args[0] = "/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question2/./shell";
-                word_args[1] = NULL;
+            //char *word_args[2];
+              //  word_args[0] = "/home/sahilg/Desktop/OS-assignments-/operating_system/Assignment-1/Question2/./shell";
+                //word_args[1] = NULL;
             //execvp(word_args[0], word_args);
         }
     }    
