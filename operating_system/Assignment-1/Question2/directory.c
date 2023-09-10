@@ -42,7 +42,8 @@ void cd(const char *dir_name, int v_flag, int r_flag) {
         if (S_ISDIR(st.st_mode)) {
             if (r_flag) {
                 delete_directory(dir_name);
-            } else {
+            } 
+            else {
                 printf("Directory already exists: %s\n", dir_name);
                 exit(1);
             }
@@ -60,7 +61,7 @@ void cd(const char *dir_name, int v_flag, int r_flag) {
     if (v_flag) {
         printf("Directory created : %s\n", dir_name );
     }
-
+    
     if (chdir(dir_name) == -1) {
         perror("Error changing directory");
         exit(1);

@@ -232,12 +232,11 @@ int main(int argc,char* argv[]) {
                 directory[2] = v_flag ? "1" : "0";
                 directory[3] = r_flag ? "1" : "0";
                 directory[4] = NULL;
-
+            
                 execvp(directory[0],directory);
                 perror("execvp failed");
                 exit(1);
             }
-
             else if (strcmp(command, "date")==0){
                 int d1_flag=0;
                 int R_flag=0;

@@ -35,6 +35,9 @@ struct DateTime date_change(struct stat f,const char* relative_time) {
     if (y){
     	dt.wk = adjusted_time->tm_wday;
     	dt.wk-=1;
+        if(dt.wk<0){
+            dt.wk = 6;
+        }
     	dt.day = adjusted_time->tm_mday;
     	dt.day-=1;
     }
@@ -45,6 +48,9 @@ struct DateTime date_change(struct stat f,const char* relative_time) {
     if (u){
     	dt.wk = adjusted_time->tm_wday;
     	dt.wk+=1;
+        if(dt.wk>6){
+            dt.wk = 0;
+        }
     	dt.day = adjusted_time->tm_mday;
     	dt.day+=1;
     }
