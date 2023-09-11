@@ -14,7 +14,11 @@ int main(){
         struct timespec end;
         clock_gettime(CLOCK_MONOTONIC,&start);
         int rc =fork();
-        if(rc == 0){
+        if(rc<0){
+            printf("fork failed");
+            exit(1);
+        }
+        else if(rc == 0){
             if(i == 0){
                 struct sched_param parameter;
                 parameter.sched_priority = 1;
