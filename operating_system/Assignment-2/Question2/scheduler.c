@@ -33,7 +33,8 @@ int main() {
     if (rc1 < 0) {
         perror("fork failed");
         exit(1);
-    } else if (rc1 == 0) {
+    } 
+    else if (rc1 == 0) {
         print_timestamp("child 1 started");
         struct sched_param parameter;
         if (nice(0) == -1) {
@@ -48,13 +49,15 @@ int main() {
         execl("./count", "./count", NULL);
         perror("child 1 execl failed");
         exit(1);
-    } else if (rc1 > 0) {
+    }
+    else if (rc1 > 0) {
         clock_gettime(CLOCK_MONOTONIC, &start2);
         int rc2 = fork();
         if (rc2 < 0) {
             perror("fork failed");
             exit(1);
-        } else if (rc2 == 0) {
+        }
+        else if (rc2 == 0) {
             print_timestamp("child 2 started");
             struct sched_param parameter;
             parameter.sched_priority = 1;
@@ -66,16 +69,18 @@ int main() {
             execl("./count", "./count", NULL);
             perror("child 2 execl failed");
             exit(1);
-        } else if (rc2 > 0) {
+        }
+        else if (rc2 > 0) {
             clock_gettime(CLOCK_MONOTONIC, &start3);
             int rc3 = fork();
             if (rc3 < 0) {
                 perror("fork failed");
                 exit(1);
-            } else if (rc3 == 0) {
+            }
+            else if (rc3 == 0) {
                 print_timestamp("child 3 started");
                 struct sched_param parameter;
-                parameter.sched_priority = 1;
+                parameter.sched_priority = 99;
                 if (sched_setscheduler(0, SCHED_FIFO, &parameter) == -1) {
                     perror("sched_setscheduler failed");
                     exit(1);
@@ -84,7 +89,8 @@ int main() {
                 execl("./count", "./count", NULL);
                 perror("child 3 execl failed");
                 exit(1);
-            } else if (rc3 > 0) {
+            }
+            else if (rc3 > 0) {
                 int status;
                 waitpid(rc1, &status, 0);
                 clock_gettime(CLOCK_MONOTONIC, &end1);
@@ -92,11 +98,11 @@ int main() {
                 clock_gettime(CLOCK_MONOTONIC, &end2);
                 waitpid(rc3, &status, 0);
                 clock_gettime(CLOCK_MONOTONIC, &end3);
-                struct timespec start_time_sec = min(min(start1, start2), start3);
-                struct timespec end_time_sec = min(min(end1, end2), end3);
-                struct timespec sched_other_duration = {end1.tv_sec - start_time_sec.tv_sec, end1.tv_nsec - start_time_sec.tv_nsec};
-                struct timespec sched_rr_duration = {end2.tv_sec - start_time_sec.tv_sec, end2.tv_nsec - start_time_sec.tv_nsec};
-                struct timespec sched_fifo_duration = {end3.tv_sec - start_time_sec.tv_sec, end3.tv_nsec - start_time_sec.tv_nsec};
+                //struct timespec start_time_sec = min(min(start1, start2), start3);
+                //struct timespec end_time_sec = min(min(end1, end2), end3);
+                struct timespec sched_other_duration = {end1.tv_sec - start1.tv_sec, end1.tv_nsec - start1.tv_nsec};
+                struct timespec sched_rr_duration = {end2.tv_sec - start2.tv_sec, end2.tv_nsec - start2.tv_nsec};
+                struct timespec sched_fifo_duration = {end3.tv_sec - start3.tv_sec, end3.tv_nsec - start3.tv_nsec};
                 if (sched_other_duration.tv_nsec < 0) {
                     sched_other_duration.tv_sec -= 1;
                     sched_other_duration.tv_nsec += 1000000000;
