@@ -25,9 +25,17 @@ struct timespec min(struct timespec a, struct timespec b) {
         return a;
     }
 }
+struct sched_param parameter_A;
+struct sched_param parameter_B;
+struct sched_param parameter_C;
+int priority_other;
+int priority_rr;
+int priority_fifo;
 
 int main() {
     struct timespec start1, start2, start3, end1, end2, end3;
+    priority_rr = 5;
+    priority_fifo = 90;
     clock_gettime(CLOCK_MONOTONIC, &start1);
     int rc1 = fork();
     if (rc1 < 0) {
@@ -36,16 +44,11 @@ int main() {
     } 
     else if (rc1 == 0) {
         print_timestamp("child 1 started");
-        struct sched_param parameter;
-        if (nice(0) == -1) {
-            perror("nice failed");
-            exit(1);
-        }
-        if (sched_setscheduler(0, SCHED_OTHER, &parameter) == -1) {
+        parameter_A.sched_priority = priority_other;
+        if (sched_setscheduler(0, SCHED_OTHER, &parameter_A) == -1) {
             perror("sched_setscheduler failed");
             exit(1);
         }
-        sched_yield();
         execl("./count", "./count", NULL);
         perror("child 1 execl failed");
         exit(1);
@@ -59,13 +62,11 @@ int main() {
         }
         else if (rc2 == 0) {
             print_timestamp("child 2 started");
-            struct sched_param parameter;
-            parameter.sched_priority = 1;
-            if (sched_setscheduler(0, SCHED_RR, &parameter) == -1) {
+            parameter_B.sched_priority = priority_rr;
+            if (sched_setscheduler(0, SCHED_RR, &parameter_B) == -1) {
                 perror("sched_setscheduler failed");
                 exit(1);
             }
-            sched_yield();
             execl("./count", "./count", NULL);
             perror("child 2 execl failed");
             exit(1);
@@ -79,13 +80,12 @@ int main() {
             }
             else if (rc3 == 0) {
                 print_timestamp("child 3 started");
-                struct sched_param parameter;
-                parameter.sched_priority = 99;
-                if (sched_setscheduler(0, SCHED_FIFO, &parameter) == -1) {
+                parameter_C.sched_priority = priority_fifo;
+                if (sched_setscheduler(0, SCHED_FIFO, &parameter_C) == -1) {
                     perror("sched_setscheduler failed");
                     exit(1);
                 }
-                sched_yield();
+                //sched_yield();
                 execl("./count", "./count", NULL);
                 perror("child 3 execl failed");
                 exit(1);
