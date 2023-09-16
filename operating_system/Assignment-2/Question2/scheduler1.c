@@ -19,7 +19,7 @@ struct timespec start[3], end[3], time_for_scheduling[3];
 
 int main(int argc, char *argv[]) {
     priority_rr = 10;
-    priority_fifo = 90;
+    priority_fifo = 10;
     int status = 0;
     int rc[3];
     for (int i = 0; i < 3; i++) {
@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
         waitpid(rc[i], &status, 0); 
         clock_gettime(CLOCK_REALTIME, &end[i]);
     }
+
     for (int i = 0;i<3;i++) {
         struct timespec duration = {
             end[i].tv_sec - start[i].tv_sec,
@@ -90,11 +91,15 @@ int main(int argc, char *argv[]) {
         perror("fopen failed");
         exit(1);
     }
+    fprintf(ptr, "%d ",priority_other);
+    
+    fprintf(ptr, "%d ",priority_rr);
 
+    fprintf(ptr, "%d ",priority_fifo);
     for (int i = 0; i < 3; i++) {
-        fprintf(ptr, "%ld.%09ld\n", time_for_scheduling[i].tv_sec, time_for_scheduling[i].tv_nsec);
+        fprintf(ptr, "%ld.%09ld ", time_for_scheduling[i].tv_sec, time_for_scheduling[i].tv_nsec);
     }
-
+    fprintf(ptr, "\n");
     fclose(ptr);
 
     char *args[] = {"python3", "scheduler.py", NULL};
