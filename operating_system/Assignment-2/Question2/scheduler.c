@@ -73,12 +73,13 @@ int main(int argc, char *argv[]) {
             end[i].tv_sec - start[i].tv_sec,
             end[i].tv_nsec - start[i].tv_nsec
         };
-        if (duration.tv_nsec < 0) {
+        if(duration.tv_nsec < 0) {
             duration.tv_sec -= 1;
-            duration.tv_nsec += 1000000000;
+            duration.tv_nsec += 1000000000; 
         }
-        if (i == 0) {
+        if(i == 0) {
             printf("SCHED_OTHER took time: %ld.%09ld\n", duration.tv_sec, duration.tv_nsec);
+            
         } 
         else if (i == 1) {
             printf("SCHED_RR took time: %ld.%09ld\n", duration.tv_sec, duration.tv_nsec);

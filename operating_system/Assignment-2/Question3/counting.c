@@ -4,8 +4,9 @@
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/list.h> 
+#include <linux/signal.h>
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Aditya");
+MODULE_AUTHOR("Aditya and Sahil");
 MODULE_DESCRIPTION("module counting number of running processes.");
 #define __NR_count_processes 1000
 asmlinkage long counting_process(void) {
