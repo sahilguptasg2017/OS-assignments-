@@ -16,18 +16,18 @@ asmlinkage long counting_process(void) {
        // printk(KERN_INFO "%d",task->__state);
         // task->__state == 0
         if (task_is_running(task)){
+            printk(task->comm);
             count++;
        // printk("HI\n");
         }
     }
-    printk(KERN_INFO "Number of running processes: %ld\n", count);
     return count;
 }
 static int __init display_init(void) {
     long k;
     printk(KERN_INFO "Module loaded ... \n");
     k=counting_process();
-    printk(KERN_INFO "%ld\n",k);
+    printk(KERN_INFO "The number of running processes are: %ld\n",k);
     return 0;
 }
 static void __exit display_cleanup(void) {
