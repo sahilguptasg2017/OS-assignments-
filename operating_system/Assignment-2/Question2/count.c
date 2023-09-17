@@ -1,12 +1,10 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <math.h>
 int main(){
-    long long int count = 1 ;
-    long long int max = pow(2, 32) ;
-    while(count < max){
-        count++;
+    long int n = 0 ;
+    for (long i = 0 ; i< pow(2, 32); i++){
+        n++;
+        //printf("%ld\n",n);
     }
-    //printf("%lldd",count);
-    return 0;
+    //printf("%ld\n",n);
 }
