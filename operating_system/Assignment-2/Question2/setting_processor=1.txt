@@ -1,0 +1,1 @@
+sudo taskset --cpu-list 1 "./scheduler"
