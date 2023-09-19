@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 with open("time.txt", "r") as f:
     data = [float(line.strip()) for line in f]
-labels = ['Other', 'RR', 'Fifo']
+labels = ['Other-(priority=0)', 'RR-(priority=50)', 'Fifo-(priority)']
 colors = ['blue', 'green', 'red']
 y = np.arange(0, len(data))
 bar_width = 1 

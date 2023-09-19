@@ -19,8 +19,8 @@ struct timespec start[3], end[3], time_for_scheduling[3];
 
 int main(int argc, char *argv[]) {
     priority_other = 0;
-    priority_rr = 5;
-    priority_fifo = 5;
+    priority_rr = 50;
+    priority_fifo = 50;
     int status = 0;
     int rc[3];
     for (int i = 0; i < 3; i++) {
@@ -35,14 +35,14 @@ int main(int argc, char *argv[]) {
                 printf("child 1 started\n");
                 struct sched_param parameter_A;
                 parameter_A.sched_priority = priority_other;
-                sched_setscheduler(0, SCHED_OTHER, &parameter_A);
+                sched_setscheduler(getpid(), SCHED_OTHER, &parameter_A);
                 execl("./count", NULL);
                 perror("execl failed");
             } 
             else if (i == 1) {
                 struct sched_param parameter_B;
                 parameter_B.sched_priority = priority_rr;
-                sched_setscheduler(0, SCHED_RR, &parameter_B);
+                sched_setscheduler(getpid(), SCHED_RR, &parameter_B);
                 printf("child 2 started\n");
                 execl("./count", NULL);
                 perror("execl failed");
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
             else if (i == 2) {
                 struct sched_param parameter_C;
                 parameter_C.sched_priority = priority_fifo;
-                sched_setscheduler(0, SCHED_FIFO, &parameter_C);
+                sched_setscheduler(getpid(), SCHED_FIFO, &parameter_C);
                 printf("child 3 started\n");
                 execl("./count", NULL);
                 perror("execl failed");
@@ -105,10 +105,11 @@ int main(int argc, char *argv[]) {
     }
     fprintf(ptr, "\n");
     fclose(ptr);
-    char *args[] = {"python3", "scheduler.py", NULL};
+    /*char *args[] = {"python3", "scheduler.py", NULL};
     execvp("python3", args);
     perror("execvp failed");
     exit(1);
+    */
     return 0;
 }
     

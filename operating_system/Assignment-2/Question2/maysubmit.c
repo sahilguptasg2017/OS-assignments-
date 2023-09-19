@@ -12,6 +12,7 @@ void print_timestamp(const char* label) {
     clock_gettime(CLOCK_REALTIME, &timestamp);
     printf("%s: %ld.%09ld\n", label, timestamp.tv_sec, timestamp.tv_nsec);
 }
+
 int priority_other;
 int priority_rr ;    
 int priority_fifo;  
@@ -22,25 +23,24 @@ int main(int argc, char *argv[]) {
     priority_rr = 50;
     priority_fifo = 50;
     int status = 0;
-  //  pid_t ret;
+    pid_t ret;
     pid_t rc[3];
     for (int i = 0; i < 3; i++) {
         clock_gettime(CLOCK_REALTIME, &start[i]);
         rc[i] = fork();
-        //ret = rc[i];
+        ret = rc[i];
         if (rc[i] < 0) {
             perror("fork failed");
             exit(1);
         } 
-        else if (rc[i] == 0) { 
+        else if (rc[i] == 0) {
             if (i == 0) {
                 struct sched_param parameter_A;
                 parameter_A.sched_priority = priority_other;
                 sched_setscheduler(rc[i], SCHED_OTHER, &parameter_A);
-                perror("scheduling");
-                printf("child 1 started\n");
-                //ret = rc[i];
-            //    clock_gettime(CLOCK_REALTIME, &start[i]);
+                perror("scheduling1");
+                //printf("child 1 started\n");
+                ret = rc[i];
                 execvp("./count", NULL);
                 perror("execl failed");
 
@@ -49,10 +49,9 @@ int main(int argc, char *argv[]) {
                 struct sched_param parameter_B;
                 parameter_B.sched_priority = priority_rr;
                 sched_setscheduler(rc[i], SCHED_RR, &parameter_B);
-                perror("scheduling");
-                printf("child 2 started\n");
-                //ret = rc[i];
-            //    clock_gettime(CLOCK_REALTIME, &start[i]);
+                perror("scheduling2");
+                //printf("child 2 started\n");
+                ret = rc[i];
                 execvp("./count", NULL);
                 perror("execl failed");
             }
@@ -60,10 +59,9 @@ int main(int argc, char *argv[]) {
                 struct sched_param parameter_C;
                 parameter_C.sched_priority = priority_fifo;
                 sched_setscheduler(rc[i], SCHED_FIFO, &parameter_C);
-                perror("scheduling");
-                printf("child 3 started\n");
-                //ret = rc[i];
-            //    clock_gettime(CLOCK_REALTIME, &start[i]);
+                perror("scheduling3");
+                //printf("child 3 started\n");
+                ret = rc[i];
                 execvp("./count", NULL);
                 perror("execl failed");
             }            
@@ -74,28 +72,13 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }   
-    
-
-    for (int i = 0; i<3;i++) {
-        pid_t wc = waitpid(-1, &status, 0); 
-        printf("%d\n",wc);
-        for(int k = 0 ; k<3; k++){
-            if(wc == rc[k]){
-                clock_gettime(CLOCK_REALTIME, &end[k]);      
-            }
-        }
-   //     clock_gettime(CLOCK_REALTIME, &end[i]);
-    }
-
-    /*for(int i=0;i<3;i++){
+     /*for(int i=0;i<3;i++){
         printf("%d\n",rc[i]);
     }*/
-    for(int i=0;i<3;i++){
-        printf("%ld.09%ld\n",start[i].tv_sec,start[i].tv_nsec);
-    }
 
-    for(int i=0;i<3;i++){
-        printf("%ld.%09ld\n",end[i].tv_sec,end[i].tv_nsec);
+    for (int i = 0; i<3;i++) {
+        waitpid(ret, &status, 0); 
+        clock_gettime(CLOCK_REALTIME, &end[i]);
     }
 
     for (int i = 0;i<3;i++) {
@@ -107,39 +90,40 @@ int main(int argc, char *argv[]) {
             duration.tv_sec -= 1;
             duration.tv_nsec += 1000000000; 
         }
+        long int sec= duration.tv_sec;
+        long int nsec = duration.tv_nsec;
+        printf("%ld.%ld\n",sec,nsec);
         if(i == 0) {
-            printf("SCHED_OTHER took time: %ld.%09ld\n", duration.tv_sec, duration.tv_nsec);
-            
+            printf("SCHED_OTHER took time: %ld.%09ld m-seconds\n", duration.tv_sec*1000, duration.tv_nsec/1000);
         } 
         else if (i == 1) {
-            printf("SCHED_RR took time: %ld.%09ld\n", duration.tv_sec, duration.tv_nsec);
+            printf("SCHED_RR took time: %ld.%09ld seconds\n", duration.tv_sec, duration.tv_nsec);
         } 
         else if (i == 2) {
-            printf("SCHED_FIFO took time: %ld.%09ld\n", duration.tv_sec, duration.tv_nsec);
+            printf("SCHED_FIFO took time: %ld.%09ld seconds\n", duration.tv_sec, duration.tv_nsec);
         }
         time_for_scheduling[i] = duration;
     }
     FILE *ptr;
-    ptr = fopen("time.txt", "a");
+    ptr = fopen("time.txt", "w");
     if (ptr == NULL) {
         perror("fopen failed");
         exit(1);
     }
-    fprintf(ptr, "%d ",priority_other);
+    //fprintf(ptr, "%d ",priority_other);
     
-    fprintf(ptr, "%d ",priority_rr);
+    //fprintf(ptr, "%d ",priority_rr);
 
-    fprintf(ptr, "%d ",priority_fifo);
+    //fprintf(ptr, "%d ",priority_fifo);
     for (int i = 0; i < 3; i++) {
         fprintf(ptr, "%ld.%09ld ", time_for_scheduling[i].tv_sec, time_for_scheduling[i].tv_nsec);
     }
     fprintf(ptr, "\n");
     fclose(ptr);
-    /*char *args[] = {"python3", "scheduler.py", NULL};
+    char *args[] = {"python3", "scheduler.py", NULL};
     execvp("python3", args);
     perror("execvp failed");
     exit(1);
-    */
     return 0;
 }
     
