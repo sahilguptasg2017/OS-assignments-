@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i<3;i++) {
         pid_t wc = waitpid(-1, &status, 0); 
-        printf("%d\n",wc);
+        //printf("%d\n",wc);
         for(int k = 0 ; k<3; k++){
             if(wc == rc[k]){
                 clock_gettime(CLOCK_REALTIME, &end[k]);      
