@@ -89,14 +89,14 @@ int main(int argc, char *argv[]) {
 
     /*for(int i=0;i<3;i++){
         printf("%d\n",rc[i]);
-    }*/
+    }
     for(int i=0;i<3;i++){
         printf("%ld.09%ld\n",start[i].tv_sec,start[i].tv_nsec);
     }
 
     for(int i=0;i<3;i++){
         printf("%ld.%09ld\n",end[i].tv_sec,end[i].tv_nsec);
-    }
+    }*/
 
     for (int i = 0;i<3;i++) {
         struct timespec duration = {
@@ -120,26 +120,25 @@ int main(int argc, char *argv[]) {
         time_for_scheduling[i] = duration;
     }
     FILE *ptr;
-    ptr = fopen("time.txt", "a");
+    ptr = fopen("time.txt", "w");
     if (ptr == NULL) {
         perror("fopen failed");
         exit(1);
     }
-    fprintf(ptr, "%d ",priority_other);
+   // fprintf(ptr, "%d ",priority_other);
     
-    fprintf(ptr, "%d ",priority_rr);
+   // fprintf(ptr, "%d ",priority_rr);
 
-    fprintf(ptr, "%d ",priority_fifo);
+   // fprintf(ptr, "%d ",priority_fifo);
     for (int i = 0; i < 3; i++) {
         fprintf(ptr, "%ld.%09ld ", time_for_scheduling[i].tv_sec, time_for_scheduling[i].tv_nsec);
     }
     fprintf(ptr, "\n");
     fclose(ptr);
-    /*char *args[] = {"python3", "scheduler.py", NULL};
+    char *args[] = {"python3", "scheduler.py", NULL};
     execvp("python3", args);
     perror("execvp failed");
     exit(1);
-    */
     return 0;
 }
     
