@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
             if (i == 0) {
                 struct sched_param parameter_A;
                 parameter_A.sched_priority = priority_other;
+                nice(0);
                 sched_setscheduler(rc[i], SCHED_OTHER, &parameter_A);
                 perror("scheduling");
                 printf("child 1 started\n");
