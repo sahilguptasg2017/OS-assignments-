@@ -34,35 +34,35 @@ int main(int argc, char *argv[]) {
         } 
         else if (rc[i] == 0) { 
             if (i == 0) {
-                struct sched_param parameter_A;
+                struct sched_param parameter_A;                                                                                                     
                 parameter_A.sched_priority = priority_other;
                 nice(0);
                 sched_setscheduler(rc[i], SCHED_OTHER, &parameter_A);
-                perror("scheduling");
-                printf("child 1 started\n");
+                perror("scheduling1");
+              //  printf("child 1 started\n");
                 //ret = rc[i];
             //    clock_gettime(CLOCK_REALTIME, &start[i]);
                 execvp("./count", NULL);
                 perror("execl failed");
 
             } 
-            else if (i == 1) {
+            else if (i == 1) {  
                 struct sched_param parameter_B;
                 parameter_B.sched_priority = priority_rr;
                 sched_setscheduler(rc[i], SCHED_RR, &parameter_B);
-                perror("scheduling");
-                printf("child 2 started\n");
+                perror("scheduling2");
+               // printf("child 2 started\n");
                 //ret = rc[i];
             //    clock_gettime(CLOCK_REALTIME, &start[i]);
-                execvp("./count", NULL);
+                execvp("./count", NULL);                                                            
                 perror("execl failed");
             }
             else if (i == 2) {
                 struct sched_param parameter_C;
                 parameter_C.sched_priority = priority_fifo;
                 sched_setscheduler(rc[i], SCHED_FIFO, &parameter_C);
-                perror("scheduling");
-                printf("child 3 started\n");
+                perror("scheduling3");
+               // printf("child 3 started\n");
                 //ret = rc[i];
             //    clock_gettime(CLOCK_REALTIME, &start[i]);
                 execvp("./count", NULL);

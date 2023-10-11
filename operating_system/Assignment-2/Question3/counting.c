@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/syscalls.h>
 #include <linux/list.h> 
 #include <linux/signal.h>
@@ -15,9 +16,9 @@ asmlinkage long counting_process(void) {
     for_each_process(task) {
        // printk(KERN_INFO "%d",task->__state);
         // task->__state == 0
-        if (task_is_running(task)){
-            printk(task->comm);
-            count++;
+        if (task_is_running(task)){ 
+            //printk(task->comm);
+            count++;    
        // printk("HI\n");
         }
     }
