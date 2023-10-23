@@ -1,0 +1,7 @@
+1  ./p1 pid:22245  execution_time: 327393095000000  waiting_time: 139766392598528
+1  ./p2 pid:22401  execution_time: 364331161000000  waiting_time: 94284789223296
+1  ./p1 pid:22492  execution_time: 1548610000000  waiting_time: 139631641232080
+3  ./p2 pid:22493  execution_time: 261512000000  waiting_time: 139631641232080
+5  ./p2 pid:22493  execution_time: 159932000000  waiting_time: 139631641232080
+7  ./p2 pid:22493  execution_time: 297024000000  waiting_time: 139631641232080
+9  ./p2 pid:22493  execution_time: 450933000000  waiting_time: 139631641232080

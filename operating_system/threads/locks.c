@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <threads.h>
+#include <unistd.h>
 
 
 
@@ -24,6 +26,7 @@ void lock(lock_t *mutex){
     while(mutex->flag == 1){
         // do nothing 
     }
+    thrd_yield();
     mutex->flag = 1 ; 
 }
 void unlock(lock_t *mutex){
@@ -35,5 +38,6 @@ int main(int argc , char* argv[]){
     //lock_t mutex ; 
     //lock(&mutex)
     
+        
     return 0;
 }

@@ -1,21 +1,33 @@
 #include "simpleScheduler.h"
+#include <bits/time.h>
+#include <bits/types/sigevent_t.h>
+#include <bits/types/struct_itimerspec.h>
+#include <bits/types/timer_t.h>
+#include <linux/limits.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 int NCPU;      // no of CPU cores
 int TSLICE;    // time slice in milliseconds
-
+timer_t timerid;
 SharedMemory* shared_memory;
-Timer* timer;
-pid_t scheduler_pid;
 
-Process dummy_process = {-1, NULL, 0, NULL};
+struct timespec starting_time;
+
+static int command_number = 1;
+
+pid_t scheduler_pid;
+Process dummy_process = {-1, "NULL", 0, "NULL"};
 
 char PROMPT[1024] = "\033[1;33mshell_sh> \033[0m";
 char HISTORY_FILE[1024];
+FILE *ptr ;
 
 // main
 int main(int argc, char **argv) {
@@ -32,7 +44,20 @@ int main(int argc, char **argv) {
     // signal handling
     signal(SIGINT, handler_exit);
 
-    shared_memory = setup_shared_memory(NCPU);
+    shared_memory = setup_shared_memory(NCPU);  
+    
+    ptr = fopen("history.txt", "a");
+    if(ptr == NULL){
+        perror("fopen failed");
+        exit(1);
+    }
+    
+
+    
+    // exec time , wait time , name , pid
+
+    // line 5 : start clock_get . .
+    // line 16 : end clock 
 
     printf("Scheduler is started as a daemon process.\n");
     scheduler_pid = fork();
@@ -40,26 +65,26 @@ int main(int argc, char **argv) {
         perror("Unable to initiate scheduler");
         exit(EXIT_FAILURE);
     } else if (scheduler_pid == 0) {
-        // scheduler process created, will run until killed (daemon process)
-        int sr, processes_left=NCPU;
+        // scheduler process created, will run until the shell is killed (daemon process)
+        int sr, processes_left=NCPU, fork1;
         while (1) {
-            printf("line number 44\n");
-            sem_wait(shared_memory->shm->semaphore);
-            printf("line number 46\n");
-            sr = shared_memory->start_running;
-            printf("%d\n",sr);
-            sem_post(shared_memory->shm->semaphore);
-            show_all_processes();
-            printf("The value of value check is: %d\n",shared_memory->value_check);
-            printf("line number 47\n");
-            if (sr) {
-                processes_left = run_scheduled_processes(processes_left);
-            } else {
-                sleep(10);
+            fork1 = fork();
+            if (fork1 < 0 ){
+                printf("error in the fork1");
+            }
+            else if(fork1 == 0) {
+                usleep(SLEEP_TIME * 1000);
+                
+                clock_gettime(CLOCK_REALTIME, &starting_time);
+                run_scheduled();
+                exit(EXIT_SUCCESS);
+            }
+            else{
+                wait(NULL);
             }
         }
     } else {
-        printf("In line number 55\n");
+        // starting the shell loop
         shell_loop();
     }
     return EXIT_SUCCESS;
@@ -95,7 +120,7 @@ void shell_loop() {
         int child_pid;
         int child_status = fork(), command_status;
         
-        if (child_status < 0) { 
+        if (child_status < 0) {
             printf("the fork command failed !");
         } else if (child_status == 0){
             signal(SIGINT, SIG_DFL);
@@ -115,14 +140,12 @@ void shell_loop() {
                     continue;
                 }
 
-                
                 Process p;
-                
                 p.pid = 0;
-                p.command = args[1];
-                
+                strcpy(p.command, args[1]);
                 p.priority = (args_count == 2) ? 1 : atoi(args[2]);
                 p.STATE = "NEW";
+            
                 int enqueued = enqueueProcess(p);
                 if (enqueued == EXIT_FAILURE) {
                     printf("Cannot add more processes!\n");
@@ -133,10 +156,7 @@ void shell_loop() {
                 }
             } else if (strcmp(args[0],"start") == 0) {
                 // Execution is to start now
-                start_timer();
-                sem_wait(shared_memory->shm->semaphore);
                 shared_memory->start_running = 1;
-                sem_post(shared_memory->shm->semaphore);
             } else if (strcmp(args[0],"show") == 0) {
                 // Show all processes in queue
                 show_all_processes();
@@ -152,7 +172,6 @@ void shell_loop() {
         }
     } while(status);
 }
-
 
 char *read_line() {
     char *command = NULL;
@@ -176,7 +195,7 @@ char *read_line() {
 char **splitting_function(char *command) {
     int buffsize = SH_TOKEN_BUFFSIZE;
     int i= 0;
-    char *tokens =(char* ) malloc(buffsize*sizeof(char *));
+    char **tokens =(char** ) malloc(buffsize*sizeof(char *));
 
     char *token ;
     char *tokens_duplicate;
@@ -188,12 +207,12 @@ char **splitting_function(char *command) {
 
     token = strtok(command , " \t\r\n\a");
     while (token != NULL){
-        tokens[i++] = *token;
+        tokens[i++] = token;
 
         if (i >= buffsize){
             buffsize *= 2;
-            tokens_duplicate = tokens;
-            tokens =*(char** )realloc(tokens, buffsize *sizeof(char *));
+            tokens_duplicate = *tokens;
+            tokens =(char** )realloc(tokens, buffsize *sizeof(char *));
             
             if (!tokens){
                 free(tokens_duplicate);
@@ -206,7 +225,7 @@ char **splitting_function(char *command) {
     }
 
     tokens[i] = NULL;
-    return &tokens;
+    return tokens;
 }
 
 // extra commands
@@ -235,49 +254,70 @@ void update_prompt(char* pwd) {
 
 // handlers
 void handler_exit(int signum) {
-    // if (!queueIsEmpty()) {
-    //     printf("Cannot close shell right now\n");
-    //     printf("There are some processes still submitted\n");
-    //     return;
-    // }
+    if (!queueIsEmpty()) {
+        printf("Cannot close shell right now\n");
+        printf("There are some processes still submitted\n");
+        return;
+    }
     printf("\nCtrl + C was pressed! Exiting...\n");
 
     cleanup();
     exit(signum);
 }
 
-void handler_alarm(union sigval sig) {
-    printf("2\n");
+void timer_callback(){
     // stop the already running processes which are stored in processes_running array.
     // put these processes back in the queue
     // call run_n_processes() to run next NPCU processes
+
     Process p;
     for (int i=0; i<NCPU; i++) {
         p = shared_memory->processes_running[i];
+        // printf("%f\n", p.waiting_time );
+        printf("%s\n",p.command);
+        
+        if (kill(p.pid, 0) != 0){
+            
+
+            printf("efjkejkef\n");
+            // printf("%f\n", p.executime_time);
+
+            p.STATE ="TERMINATED" ;
+            struct timespec endtime;
+            clock_gettime(CLOCK_REALTIME, &endtime);
+
+            long seconds = endtime.tv_sec - starting_time.tv_sec ; 
+            long nseconds = endtime.tv_nsec - starting_time.tv_nsec;
+
+            if (nseconds < 0 ){
+                seconds -=1 ;
+                nseconds += (1000000000);
+            }
+
+            long milliseconds = (seconds) / 1000 + (nseconds)*1000000 ;
+            p.executime_time = milliseconds;
+            
+            fprintf(ptr, "%d  %s pid:%d  execution_time: %ld  waiting_time: %ld\n",shared_memory->command_number++, p.command,p.pid,p.executime_time,p.waiting_time);
+            fclose(ptr);
+        }
 
         if (strcmp(p.STATE, "TERMINATED") == 0) {
             // process already terminated
-            printf("In the handler, Process %s with pid %d is %s\n", p.command, p.pid, p.STATE);
             continue;
-        } else if (strcmp(p.STATE,"NEW") == 0) {
-            // a NEW process entered the running queue somehow
-            printf("In the handler, Process %s with pid %d is %s\n", p.command, p.pid, p.STATE);
+        }
+        else if (strcmp(p.STATE,"NEW") == 0) {
             continue; 
-        } else if (strcmp(p.STATE, "RUNNING") == 0) {
-            printf("In the handler, Process %s with pid %d is %s\n", p.command, p.pid, p.STATE);
-            if (kill(p.pid, SIGSTOP) == 0) { 
-                shared_memory->processes_running[i].STATE = "READY";
-                enqueueProcess(shared_memory->processes_running[i]);
-            } else {
-                printf("Some error while stopping the running process %s with pid %d\n", p.command, p.pid);
-                exit(EXIT_FAILURE);
-            }
+        }
+        else if (kill(p.pid, SIGTSTP) == 0) { 
+            shared_memory->processes_running[i].STATE = "READY";
+            enqueueProcess(shared_memory->processes_running[i]);
+        
         } else {
-            // process is neither TERMINATED, NEW or RUNNING (either READY or something else)
-            printf("In the handler, Process %s with pid %d is %s\n", p.command, p.pid, p.STATE);
+            printf("Some error while stopping the running process with pid %d\n", p.pid);
+            exit(EXIT_FAILURE);
         }
     }
-    run_scheduled_processes(NCPU);
+    run_n_processes(NCPU);
 }
 
 // process functions
@@ -291,15 +331,10 @@ void process_info(Process process){
 }
 
 void show_all_processes() {
-    printf("fvbekr\n");
-
     if (!queueIsEmpty()) {
         for (int i=MAX_PRIORITY-1; i>=0; i--) {
-            printf("%dth process index %d\n",i,shared_memory->process_index[i]);
             for (int j=0; j<shared_memory->process_index[i]; j++) {
-                printf("fvsffvjkjdscwhfk\n");
                 process_info(shared_memory->process_table[i][j]);
-                printf("xxxxxxxxxxxxxxxxxxxxxxxx\n");
             }
         }
     } else {
@@ -308,107 +343,136 @@ void show_all_processes() {
 }
 
 // scheduler functions
-void run_scheduler() {
-    printf("Scheduler is started as a daemon process.\n");
-    scheduler_pid = fork();
-    if (scheduler_pid < 0) {
-        perror("Unable to initiate scheduler");
-        exit(EXIT_FAILURE);
-    } else if (scheduler_pid == 0) {
-        // scheduler process created, will run until killed (daemon process)
-        int sr, processes_left=NCPU;
-        while (1) {
-            sem_wait(shared_memory->shm->semaphore);
-            sr = shared_memory->start_running;
-            sem_post(shared_memory->shm->semaphore);
-
-            if (sr) {
-                processes_left = run_scheduled_processes(processes_left);
-            } else {
-                sleep(1);
-            }
-        }
-    } else {
-        shell_loop();
-    }
-}
-
-int run_scheduled_processes(int n) {
-    Process p;
+int run_n_processes(int n) {
+    Process* p = malloc(sizeof(Process));
     char* args[2];
     for (int i=0; i<n; i++) {
-        p = dequeueProcess();
-        if (p.pid == dummy_process.pid) return i;
-        else {
-            sem_wait(shared_memory->shm->semaphore);
-            shared_memory->processes_running[i] = p;
-            sem_post(shared_memory->shm->semaphore);
+        *p = dequeueProcess();
+        if (p->pid < 0) {
+            continue;
         }
+       shared_memory->processes_running[i] = *p;
+
     }
 
+    for (int i =0 ;i<n;i++){
+        Process* p1 = malloc(sizeof(Process));
+        p1 = shared_memory->processes_running+i;
+    }
+
+
+
     for (int i=0; i<n; i++) {
-        sem_wait(shared_memory->shm->semaphore);
-        p = shared_memory->processes_running[i];
-        if (strcmp(p.STATE, "NEW") == 0) {
+        p = shared_memory->processes_running+i;
+        if (strcmp(p->STATE, "NEW") == 0) {
             int child_proc = fork();
             if (child_proc < 0){
                 printf("fork process failed!\n");
-            } else if (child_proc == 0) {
-                args[0] = p.command;
+            }
+            else if (child_proc == 0) {
+                args[0] = p->command;
                 args[1] = NULL;
                 
-                execvp(args[0], args);
+                if ( execvp(args[0], args) ){
+                    perror("No such executable!");
+
+                }
+                
                 exit(EXIT_SUCCESS);
             } else {
-                shared_memory->processes_running[i].pid = child_proc;
-                shared_memory->processes_running[i].STATE = "RUNNING";
+                
+                p->pid = child_proc;
+                p->STATE = "RUNNING";
             }
-        } else if (strcmp(p.STATE, "READY") == 0) {
-            if (kill(p.pid, SIGCONT) == 0) {
-                // continued successfully
+        } else if (strcmp(p->STATE, "READY") == 0) {
+            p->STATE = "RUNNING";
+            if (kill(p->pid, SIGCONT) == 0) {
+                // process resumed successfully.
             } else {
-                // error in continuing
-                printf("Error in resuming process %s with pid %d\n", p.command, p.pid);
+                //printf("Error in resuming process with pid %d\n", p->pid);
+                exit(EXIT_SUCCESS);
+            }
+        }
+    }
+    for (int i= 0;i<NCPU ;i++){
+        waitpid(shared_memory->processes_running[i].pid,NULL,WNOHANG);
+        
+        usleep(TSLICE*1000);
+        timer_callback();
+        waitpid(shared_memory->processes_running[i].pid,NULL,0);
+        shared_memory->processes_running[i].STATE = "TERMINATED";
+    }
+    
+    return -1;
+}
+
+int run_scheduled() {
+    int processes_left = run_n_processes(NCPU);
+    printf("This is proc_left: %d\n", processes_left);
+    if (processes_left <0){
+        processes_left = run_n_processes(NCPU);
+    }
+    else if (processes_left == 0 && queueIsEmpty()) {
+        printf("ALL PROCESSES ARE DONE!!\n");
+        // all processes completed
+    } else {
+        // run these 'left' processes 
+        printf("IN THE LEFT BLOCK\n");
+        Process* p = malloc(sizeof(Process));
+        char* args[2];
+        for (int i=0; i<processes_left; i++) {
+            p = shared_memory->processes_running+i;
+            if (strcmp(p->STATE, "NEW") == 0) {
+                
+                int child_proc = fork();
+                if (child_proc == 0) {
+                    args[0] = p->command;
+                    args[1] = NULL;
+
+                    execvp(args[0], args);
+                    exit(EXIT_SUCCESS);
+                } else {
+                    // parent process
+                    p->pid = child_proc;
+                    p->STATE = "RUNNING";
+                }
+            } else if (strcmp(p->STATE, "READY") == 0) {
+                p->STATE = "RUNNING";
+                if (kill(p->pid, SIGCONT) == 0) {
+                    // process resumed successfully.
+                } else {
+                    printf("Error in resuming process with pid %d\n", p->pid);
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                // can never reach here
+                perror("Some error occurred in left \n");
                 exit(EXIT_FAILURE);
             }
-        } else {
-            // Process is neither NEW nor READY
-            printf("In the run scheduled process, Process %s with pid %d is %s\n", p.command, p.pid, p.STATE);
         }
-        sem_post(shared_memory->shm->semaphore);
+        for (int i=0; i<processes_left; i++) {
+            waitpid(shared_memory->processes_running[i].pid, NULL, 0);
+            shared_memory->processes_running[i].STATE = "TERMINATED";
+        }
     }
 
-    for (int i=0; i<n; i++) {
-        sem_wait(shared_memory->shm->semaphore);
-        waitpid(shared_memory->processes_running[i].pid, NULL, 0);
-        shared_memory->processes_running[i].STATE = "TERMINATED";
-        sem_post(shared_memory->shm->semaphore);
-    }
-
-    return NCPU;
+    return EXIT_SUCCESS;
 }
 
 void cleanup() {
     // kill the scheduler process if the queue is empty
     kill(scheduler_pid, SIGTERM);
-
-    delete_timer();
-    free(timer);
     cleanup_shared_memory(shared_memory);
 }
 
 // Queue functions
 int enqueueProcess(Process p) {
+    
     int index = p.priority - 1;
-    // process_info(p);
-    sem_wait(shared_memory->shm->semaphore);
-    // printf("dbrgfbdb\n");
+    
     if (shared_memory->process_index[index] == MAX_QUEUE_SIZE) return EXIT_FAILURE;
     shared_memory->process_table[index][shared_memory->process_index[index]++] = p;
-    // process_info(shared_memory->process_table[index][shared_memory->process_index[index]]);
-    // show_all_processes();
-    shared_memory->value_check +=1;
-    sem_post(shared_memory->shm->semaphore);
+    
     return EXIT_SUCCESS;
 }
 
@@ -425,7 +489,6 @@ Process dequeueProcess() {
         return dummy_process;
     }
     
-    sem_wait(shared_memory->shm->semaphore);
     Process p = shared_memory->process_table[hPriority][0];
 
     // Shifting the remaining to right
@@ -434,7 +497,6 @@ Process dequeueProcess() {
     }
     
     shared_memory->process_index[hPriority]--;
-    sem_post(shared_memory->shm->semaphore);
     return p;
 }
 
@@ -444,68 +506,16 @@ int queueIsEmpty() {
         if (shared_memory->process_index[i] > 0) {
             empty = 0;
             break;
-        }
+        }   
     }
 
     return empty;
 }
 
-//timer functions
-Timer* create_timer() {
-    Timer* t = (Timer*) malloc(sizeof(Timer));
-    if (t == NULL) exit(EXIT_FAILURE);
-
-    struct sigevent sev;
-    struct itimerspec its;
-    timer_t timerid;
-
-    // Create a timer
-    sev.sigev_notify = SIGEV_THREAD;
-    sev.sigev_notify_function = handler_alarm;
-    sev.sigev_notify_attributes = NULL;
-    sev.sigev_value.sival_ptr = &timerid;
-
-    if (timer_create(CLOCK_REALTIME, &sev, &timerid) == -1) {
-        perror("timer_create");
-        exit(EXIT_FAILURE);
-    }
-
-    int millisec = TSLICE;
-    int second = millisec / 1000;
-    its.it_value.tv_sec = second;
-    its.it_value.tv_nsec = (millisec - (second * 1000)) * 1000;
-    its.it_interval.tv_sec = second;
-    its.it_interval.tv_nsec = (millisec - (second * 1000)) * 1000;
-
-    // Start the timer
-    if (timer_settime(timerid, 0, &its, NULL) == -1) {
-        perror("timer_settime");
-        exit(EXIT_FAILURE);
-    }
-
-    t->timerid = timerid;
-    t->its = &its;
-    t->sev = sev;
-
-    return t;
-}
-
-int start_timer() {
-    // returns -1 if fails
-    return timer_settime(timer->timerid, 0, timer->its, NULL);
-}
-
-int delete_timer() {
-    // returns -1 if fails
-    return timer_delete(timer->timerid);
-}
-
 // shared memory
 SharedMemory* setup_shared_memory(int NCPU) {
     int shm_fd;
-    char sem_name[] = "/my_semaphore";
     char mem_name[] = "/my_shared_memory";
-    sem_t* sem;
     SharedMemory* shared_memory;
     
 
@@ -529,33 +539,18 @@ SharedMemory* setup_shared_memory(int NCPU) {
         exit(EXIT_FAILURE);
     }
 
-    // create semaphore
-    sem = sem_open(sem_name, O_CREAT, 0666, 1);
-    if (sem == SEM_FAILED) {
-        perror("sem_open");
-        exit(EXIT_FAILURE);
-    }
-
     shared_memory->shm = (shm_t*) malloc(sizeof(shm_t));
-    shared_memory->shm->semaphore = sem;
     shared_memory->shm->memory_name = mem_name;
-    shared_memory->shm->semaphore_name = sem_name;
+    shared_memory->shm->fd = shm_fd;
 
     // initialise the process table and all
-    
     for (int i=0; i<MAX_PRIORITY; i++) shared_memory->process_index[i] = 0;
-    shared_memory->processes_running = (Process*) malloc(NCPU * sizeof(Process));
     shared_memory->start_running = 0;
-    shared_memory->value_check = 0;
-
+    shared_memory->command_number = 1;
     return shared_memory;
 }   
 
 void cleanup_shared_memory(SharedMemory* shared_memory) {
-    for (int i=0; i<MAX_PRIORITY; i++) free(shared_memory->process_table[i]);
-    free(shared_memory->process_table);
-    free(shared_memory->processes_running);
-
     if (munmap(shared_memory, sizeof(SharedMemory)) == -1) {
         perror("munmap");
         exit(EXIT_FAILURE);
@@ -571,15 +566,9 @@ void cleanup_shared_memory(SharedMemory* shared_memory) {
         exit(EXIT_FAILURE);
     }
 
-    if (sem_close(shared_memory->shm->semaphore) == -1) {
-        perror("sem_close");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sem_unlink(shared_memory->shm->semaphore_name) == -1) {
-        perror("sem_unlink");
-        exit(EXIT_FAILURE);
-    }
-
     free(shared_memory->shm);
 }
+
+
+
+//history functions 
