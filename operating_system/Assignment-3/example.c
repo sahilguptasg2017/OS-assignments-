@@ -7,7 +7,7 @@ int main(int argc, char const *argv[])
     // initialise the MeMS system 
     mems_init();
     int* ptr[10];
-
+    
     /*
     This allocates 10 arrays of 250 integers each
     */
