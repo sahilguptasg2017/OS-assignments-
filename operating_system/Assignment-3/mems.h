@@ -9,11 +9,10 @@ you can also make additional helper functions a you wish
 REFER DOCUMENTATION FOR MORE DETAILS ON FUNSTIONS AND THEIR FUNCTIONALITY
 */
 // add other headers as required
-#include <stddef.h>
+#include <stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include <sys/mman.h>
-
 
 /*
 Use this macro where ever you need PAGE_SIZE.
@@ -21,26 +20,35 @@ As PAGESIZE can differ system to system we should have flexibility to modify thi
 macro to make the output of all system same and conduct a fair evaluation. 
 */
 #define PAGE_SIZE 4096
-struct main_chain_node{
-    struct main_chain_node* prev_main ; 
+typedef struct main_node{
+    
+    struct main_node* prev ;
     int pages ; 
-    void* mems_phy_address ;
-    struct sub_chain_node* pointer_to_subchain ;
-    struct main_chain_node* next_main ; 
-};
-struct sub_chain_node{
-    struct sub_chain_node* prev_subchain ;
-    int type ;  // hole = 0 , process = 1 ; 
-    void* physical_address ;
-    size_t start ; 
-    size_t end ; 
-    size_t node_size ;
-    struct sub_chain_node* next_subchain ;
-};
-struct main_chain_node *head = NULL ;
+    unsigned long virtual_start ; 
+    unsigned long virtual_end ;    
+    void* phy_addr ;
+    struct subchain_node* subchain ;
+    struct main_node* next ;
 
-void* mems_virtual_start_address = NULL;
+}main_node;
 
+typedef struct subchain_node{
+    struct subchain_node* prev ;
+    int type ; // 0 for hole 1 for process .. 
+    unsigned long virtual_start ; 
+    unsigned long virtual_end ;
+    void* phys_addr ;    
+    size_t size ; 
+    struct subchain_node* next ;
+      
+}subchain_node; 
+
+unsigned long* vir_address ;
+struct main_node* head ;
+struct main_node* current_pointer ;
+unsigned long  main_node_size = sizeof(struct main_node) ;
+unsigned long subchain_size = sizeof(struct subchain_node) ;
+ 
 
 /*
 Initializes all the required parameters for the MeMS system. The main parameters to be initialized are:
@@ -51,12 +59,12 @@ Input Parameter: Nothing
 Returns: Nothing
 */
 void mems_init(){
-    head = NULL;    
-    mems_virtual_start_address = (void*) 0 ;
-    if(mems_virtual_start_address == MAP_FAILED){
-        perror("mmap failed") ;
-        exit(EXIT_FAILURE) ;
-    }
+    vir_address = (unsigned long*)1000 ;
+    head = (main_node*)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
+    head->next = NULL ;
+    current_pointer=head ;
+
+
 }
 
 
@@ -67,12 +75,11 @@ Input Parameter: Nothing
 Returns: Nothing
 */
 void mems_finish(){
-    
-
-
-    
-
-
+    struct main_node* main_chain = head ;
+    while(main_chain != NULL){
+        munmap(&main_chain,main_chain->pages*PAGE_SIZE) ;
+        main_chain = main_chain->next ;
+    }
 }
 
 
@@ -88,83 +95,66 @@ by adding it to the free list.
 Parameter: The size of the memory the user program wants
 Returns: MeMS Virtual address (that is created by MeMS)
 */ 
-void* mems_malloc(size_t size){ // int *arr = mems_malloc(sizeof(int) * 10)
-    int n ; 
+void* mems_malloc(size_t size){
+    int n = 1 ; 
     while(n*PAGE_SIZE < size){
-        n++ ; 
+        n++ ;
     }
-    int flag = 0;
-    struct main_chain_node *current = head ;
-    int total_size = 0 ;
-    while (current != NULL) {
-        struct sub_chain_node *current_subchain = current->pointer_to_subchain ;
-        while (current_subchain != NULL) {
-            // need to change virtual address here . 
-            current_subchain->start = total_size ;
-            current_subchain->end = total_size+current_subchain->node_size - 1 ;
-            total_size+=current_subchain->node_size ;
-            current_subchain=current_subchain->next_subchain;
-        }       
-        current=current->next_main;
+
+    printf("mems_mall\n");
+
+    if(size == 0){
+        return NULL;
     }
-        
-    while(current != NULL){
-        struct sub_chain_node *current_subchain = current->pointer_to_subchain ;
-        current_subchain->start = PAGE_SIZE*(current->pages) ;
-        while(current_subchain!=NULL){
-            if(current_subchain->type == 0 && current_subchain->node_size > size ){
-                flag =1 ;
-                size_t available = current_subchain->node_size ;
-                if(current_subchain->next_subchain != NULL){
-                    struct sub_chain_node *next_to_node = current_subchain->next_subchain;
-                    struct sub_chain_node *new_sub_chain_node = (struct sub_chain_node*)((char*)current_subchain + size);
-                    current_subchain->type = 1 ;
-                    current_subchain->next_subchain = new_sub_chain_node ;
-                    current_subchain->node_size = size ;
-                    new_sub_chain_node->end = current_subchain->end ;
-                    new_sub_chain_node->start = size ;
-                    current_subchain->end = size - 1 ;
-                    new_sub_chain_node->prev_subchain = current_subchain ;
-                    new_sub_chain_node->next_subchain = next_to_node ;
-                    new_sub_chain_node->type = 0 ;
-                    new_sub_chain_node->node_size = available - size ;
-                    return (void*)current_subchain->start;
+    else{
+        //printf("etre\n");
+        if(head->next != NULL){
+            printf("head != NULL\n") ;
+            main_node* main_chain = head ;
+            while (main_chain!=NULL) {
+                subchain_node* sub_chain = main_chain->subchain;
+                //need to increase the current_pointer // 
+                while (sub_chain!=NULL) {
+                    if(sub_chain->type == 0 && sub_chain->size>size){
+                        
+                    }
+                    else if (sub_chain->type == 0 && sub_chain->size==size){
+                        sub_chain->type = 1 ;
+                        
+
+
+
+                    }
+
+
+                    sub_chain= sub_chain->next ;
                 }
-                else{
-                    struct sub_chain_node *new_sub_chain_node = (struct sub_chain_node*)((char*)current_subchain + size);
-                    current_subchain->type = 1 ;
-                    current_subchain->next_subchain = new_sub_chain_node ;
-                    current_subchain->node_size = size ;
-                    new_sub_chain_node->end = current_subchain->end ;
-                    new_sub_chain_node->start = size ;
-                    current_subchain->end = size - 1 ;
-                    new_sub_chain_node->prev_subchain = current_subchain ;
-                    new_sub_chain_node->next_subchain = NULL ;
-                    new_sub_chain_node->type = 0 ;
-                    new_sub_chain_node->node_size = available - size ;
-                    return (void*)current_subchain->start;
-                }
+                
+
+
             }
-            else if(current_subchain->type == 0 && current_subchain->node_size == size ){
-                flag = 1 ; 
-                current_subchain->type = 1 ;
-            }
-            current_subchain = current_subchain->next_subchain ;
         }
-        current = current->next_main ;
+        else{
+            //printf("dfkoaed\n");
+            main_node* first_node = current_pointer+sizeof(struct main_node) ;
+            first_node->phy_addr = mmap(NULL,n*PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            //printf("fefe");     
+            head->next = first_node ;
+            first_node->pages = n ;
+            first_node->virtual_start = vir_address;
+            first_node->virtual_end = first_node-> virtual_start+n*PAGE_SIZE - 1 ;
+            subchain_node* subchain = (subchain_node*)mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            first_node->subchain = subchain ;
+            subchain->phys_addr = first_node->phy_addr ;
+            
+                
+        }
+
+
     }
-    if(flag == 0){
-        void* addr = mmap(NULL,n*PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) ;
-        struct main_chain_node *new_main = (struct main_chain_node*) mmap(NULL,n*PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)  ;
-        new_main->mems_phy_address = addr ;
-        
 
 
 
-    }
-
-
-    
 
 }
 
@@ -189,7 +179,6 @@ Returns: MeMS physical address mapped to the passed ptr (MeMS virtual address).
 */
 void *mems_get(void*v_ptr){
     
-    
 }
 
 
@@ -199,5 +188,6 @@ Parameter: MeMS Virtual address (that is created by MeMS)
 Returns: nothing
 */
 void mems_free(void *v_ptr){
+
     
 }

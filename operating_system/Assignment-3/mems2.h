@@ -1,140 +1,195 @@
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
+#include <unistd.h>
 #include <sys/mman.h>
 
-#define PAGE_SIZE sysconf(_SC_PAGE_SIZE)
+#define PAGE_SIZE 4096  // This value might differ on some systems
 
-typedef struct Segment {
+// MeMS data structures
+struct mems_subchain_node {
     size_t size;
-    int type; // 0 for HOLE, 1 for PROCESS
-    struct Segment* next;
-    struct Segment* prev;
-} Segment;
+    int is_hole;
+    struct mems_subchain_node* next;
+    struct mems_subchain_node* prev;
+};
 
-typedef struct Node {
-    struct Segment* sub_chain;
-    struct Node* next;
-    struct Node* prev;
-} Node;
+struct mems_mainchain_node {
+    size_t total_size;
+    struct mems_subchain_node* subchain_head;
+    struct mems_mainchain_node* next;
+    struct mems_mainchain_node* prev;
+};
 
-Node* free_list_head = NULL;
+// Global variables
+struct mems_mainchain_node* mems_free_list = NULL;
 void* mems_heap_start = NULL;
 
+// Function to initialize the MeMS system
 void mems_init() {
-    // Initialize MeMS parameters here
-    mems_heap_start = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    free_list_head = (Node*)mems_heap_start;
-    free_list_head->sub_chain = NULL;
-    free_list_head->next = NULL;
-    free_list_head->prev = NULL;
+    // Initialize any global variables or data structures
+    mems_free_list = NULL;
+    
+    // Allocate an initial block of memory from the OS using mmap
+    size_t total_size = PAGE_SIZE;
+    mems_heap_start = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    
+    if (mems_heap_start != MAP_FAILED) {
+        struct mems_mainchain_node* initial_block = (struct mems_mainchain_node*)mems_heap_start;
+        initial_block->total_size = total_size;
+        initial_block->subchain_head = (struct mems_subchain_node*)((char*)initial_block + sizeof(struct mems_mainchain_node));
+        initial_block->subchain_head->size = total_size - sizeof(struct mems_subchain_node);
+        initial_block->subchain_head->is_hole = 1;
+        initial_block->subchain_head->next = NULL;
+        initial_block->subchain_head->prev = NULL;
+        initial_block->next = NULL;
+        initial_block->prev = NULL;
+        mems_free_list = initial_block;
+    }
 }
-
 void mems_finish() {
     // Unmap allocated memory using munmap system call
     munmap(mems_heap_start, PAGE_SIZE);
+    
+
+
 }
 
+// Function to allocate memory using MeMS
 void* mems_malloc(size_t size) {
-    // Implement memory allocation logic here
-    size_t rounded_size = ((size + sizeof(Segment) - 1) / PAGE_SIZE + 1) * PAGE_SIZE;
+    if (size == 0) {
+        return NULL;  // Handle zero-size allocation
+    }
+
+    struct mems_mainchain_node* block = mems_free_list;
     
-    Node* node = free_list_head;
-    while (node != NULL) {
-        Segment* segment = node->sub_chain;
+    while (block != NULL) {
+        struct mems_subchain_node* segment = block->subchain_head;
+        
         while (segment != NULL) {
-            if (segment->type == 0 && segment->size >= rounded_size) {
-                if (segment->size > rounded_size) {
-                    // Split the hole into a PROCESS and a HOLE segment
-                    Segment* process_segment = (Segment*)((char*)segment + rounded_size);
-                    process_segment->size = segment->size - rounded_size;
-                    process_segment->type = 0;
-                    process_segment->next = segment->next;
-                    process_segment->prev = segment;
-                    if (segment->next != NULL) {
-                        segment->next->prev = process_segment;
-                    }
-                    segment->next = process_segment;
-                    segment->size = rounded_size;
-                }
-                
-                segment->type = 1; // Mark as PROCESS
-                return (void*)((char*)segment + sizeof(Segment));
+            if (segment->is_hole && segment->size >= size) {
+                // Allocate memory from this segment
+                segment->is_hole = 0; // Mark it as a process
+                return (void*)((char*)block + sizeof(struct mems_mainchain_node) + (size_t)((char*)segment - (char*)mems_heap_start));
             }
             segment = segment->next;
         }
-        node = node->next;
+        
+        block = block->next;
+    }
+
+    // If no suitable segment is found, request more memory from the OS
+    size_t requested_size = size + sizeof(struct mems_subchain_node);
+    size_t num_pages = (requested_size + PAGE_SIZE - 1) / PAGE_SIZE;
+    size_t total_size = num_pages * PAGE_SIZE;
+
+    // Use mmap to allocate more memory
+    struct mems_mainchain_node* new_block = (struct mems_mainchain_node*)mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+    if (new_block != MAP_FAILED) {
+        new_block->total_size = total_size;
+        new_block->subchain_head = (struct mems_subchain_node*)((char*)new_block + sizeof(struct mems_mainchain_node));
+        new_block->subchain_head->size = total_size - sizeof(struct mems_subchain_node);
+        new_block->subchain_head->is_hole = 1;
+        new_block->subchain_head->next = NULL;
+        new_block->subchain_head->prev = NULL;
+        
+        // Add the new block to the free list
+        new_block->next = mems_free_list;
+        new_block->prev = NULL;
+        if (mems_free_list != NULL) {
+            mems_free_list->prev = new_block;
+        }
+        mems_free_list = new_block;
+
+        // Try to allocate from the new block
+        return mems_malloc(size);
+    }
+    else{
+        perror("mmap failed");
     }
     
-    // If no suitable hole is found, request more memory from the OS
-    size_t total_size = rounded_size + sizeof(Node) + sizeof(Segment);
-    Node* new_node = (Node*)mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    new_node->sub_chain = (Segment*)((char*)new_node + sizeof(Node));
-    new_node->sub_chain->size = rounded_size;
-    new_node->sub_chain->type = 1; // Mark as PROCESS
-    new_node->sub_chain->next = NULL;
-    new_node->sub_chain->prev = NULL;
-    new_node->next = free_list_head;
-    new_node->prev = NULL;
-    if (free_list_head != NULL) {
-        free_list_head->prev = new_node;
-    }
-    free_list_head = new_node;
-    
-    return (void*)((char*)new_node->sub_chain + sizeof(Segment));
+    // Return NULL if mmap fails
+    return NULL;
 }
 
+// Function to deallocate memory
 void mems_free(void* ptr) {
-    // Implement memory deallocation logic here
-    Segment* segment = (Segment*)((char*)ptr - sizeof(Segment));
-    segment->type = 0; // Mark as HOLE
+    if (ptr == NULL) {
+        return;  // Handle NULL pointer gracefully
+    }
+
+    // Find the block that contains the pointer
+    struct mems_mainchain_node* block = mems_free_list;
     
-    // Merge adjacent HOLEs in the free list
-    Node* node = free_list_head;
-    while (node != NULL) {
-        Segment* current = node->sub_chain;
-        while (current != NULL && current->next != NULL) {
-            if (current->type == 0 && current->next->type == 0) {
-                // Merge current HOLE with the next HOLE
-                current->size += current->next->size + sizeof(Segment);
-                current->next = current->next->next;
-                if (current->next != NULL) {
-                    current->next->prev = current;
+    while (block != NULL) {
+        if ((ptr >= (void*)block) && (ptr < (void*)((char*)block + block->total_size))) {
+            // Calculate the offset within the block
+            size_t offset = (size_t)((char*)ptr - (char*)block - sizeof(struct mems_mainchain_node));
+            
+            // Find the corresponding segment
+            struct mems_subchain_node* segment = block->subchain_head;
+            while (segment != NULL) {
+                if (offset >= sizeof(struct mems_subchain_node) && offset < (size_t)((char*)segment - (char*)block)) {
+                    // Mark the segment as a hole
+                    segment->is_hole = 1;
+                    break;
                 }
+                segment = segment->next;
             }
-            current = current->next;
+            
+            break;
         }
-        node = node->next;
+        
+        block = block->next;
     }
 }
-void mems_print_stats() {
-    int mapped_pages = 0;
-    size_t unused_memory = 0;
 
-    Node* node = free_list_head;
-    while (node != NULL) {
-        Segment* segment = node->sub_chain;
+// Function to convert MeMS virtual address to MeMS physical address
+void* mems_get(void* v_ptr) {
+    struct mems_mainchain_node* block = mems_free_list;
+    
+    while (block != NULL) {
+        if ((v_ptr >= (void*)block) && (v_ptr < (void*)((char*)block + block->total_size))) {
+            // Calculate the offset within the block
+            size_t offset = (size_t)((char*)v_ptr - (char*)block - sizeof(struct mems_mainchain_node));
+            
+            // Calculate the physical address
+            return (void*)((char*)mems_heap_start + offset);
+        }
+        
+        block = block->next;
+    }
+    
+    return NULL;  // Address not found
+}
+
+// Function to print MeMS statistics
+void mems_print_stats() {
+    struct mems_mainchain_node* block = mems_free_list;
+    int block_count = 0;
+    int hole_count = 0;
+    int process_count = 0;
+    
+    while (block != NULL) {
+        block_count++;
+        
+        struct mems_subchain_node* segment = block->subchain_head;
+        
         while (segment != NULL) {
-            mapped_pages += (segment->size + sizeof(Segment) - 1) / PAGE_SIZE;
-            if (segment->type == 0) {
-                unused_memory += segment->size;
+            if (segment->is_hole) {
+                hole_count++;
+            } else {
+                process_count++;
             }
             segment = segment->next;
         }
-        node = node->next;
+        
+        block = block->next;
     }
 
-    printf("Total Mapped Pages: %d\n", mapped_pages);
-    printf("Unused Memory: %zu bytes\n", unused_memory);
+    printf("Total Mapped Pages: %d\n", block_count);
+    printf("Unused Memory (Bytes): %lu\n", (unsigned long)(hole_count * sizeof(struct mems_subchain_node)));
+    printf("Number of Holes: %d\n", hole_count);
+    printf("Number of Process Segments: %d\n", process_count);
 }
 
-void* mems_get(void* v_ptr) {
-    // Find the corresponding Segment from the virtual address
-    Segment* segment = (Segment*)((char*)v_ptr - sizeof(Segment));
-    
-    // Calculate the corresponding physical address
-    void* physical_address = (void*)((char*)segment - ((char*)segment->prev + segment->prev->size));
-
-    return physical_address;
-}
