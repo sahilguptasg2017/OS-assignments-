@@ -9,8 +9,6 @@
       "args": [],
       "cwd": "${workspaceFolder}"
     },
-    
-    
     {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",

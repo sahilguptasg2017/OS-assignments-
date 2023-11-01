@@ -9,6 +9,7 @@ you can also make additional helper functions a you wish
 REFER DOCUMENTATION FOR MORE DETAILS ON FUNSTIONS AND THEIR FUNCTIONALITY
 */
 // add other headers as required
+#include <inttypes.h>
 #include <stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -43,12 +44,12 @@ typedef struct subchain_node{
       
 }subchain_node; 
 
-unsigned long* vir_address ;
+unsigned long vir_address ;
 struct main_node* head ;
 struct main_node* current_pointer ;
 unsigned long  main_node_size = sizeof(struct main_node) ;
 unsigned long subchain_size = sizeof(struct subchain_node) ;
- 
+struct subchain_node* current_pointer_subchain ;
 
 /*
 Initializes all the required parameters for the MeMS system. The main parameters to be initialized are:
@@ -59,10 +60,11 @@ Input Parameter: Nothing
 Returns: Nothing
 */
 void mems_init(){
-    vir_address = (unsigned long*)1000 ;
+    vir_address = 1000 ;
     head = (main_node*)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
     head->next = NULL ;
     current_pointer=head ;
+//    printf("%lu",(unsigned long)current_pointer) ;    
 
 
 }
@@ -100,7 +102,7 @@ void* mems_malloc(size_t size){
     while(n*PAGE_SIZE < size){
         n++ ;
     }
-
+    
     printf("mems_mall\n");
 
     if(size == 0){
@@ -119,9 +121,10 @@ void* mems_malloc(size_t size){
                         
                     }
                     else if (sub_chain->type == 0 && sub_chain->size==size){
+                        printf("dqwadwq") ;
                         sub_chain->type = 1 ;
                         
-
+                        return (void*)sub_chain->virtual_start;
 
 
                     }
@@ -136,19 +139,31 @@ void* mems_malloc(size_t size){
         }
         else{
             //printf("dfkoaed\n");
-            main_node* first_node = current_pointer+sizeof(struct main_node) ;
+           // printf("%lu %lu\n",current_pointer, main_node_size) ;
+           //printf("%c" , current_pointer) ;
+             
+            main_node* first_node = (main_node* )((unsigned char*)current_pointer+main_node_size);
+           // printf("%lu\n",first_node) ;
+            current_pointer = first_node ;
             first_node->phy_addr = mmap(NULL,n*PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
             //printf("fefe");     
             head->next = first_node ;
             first_node->pages = n ;
-            first_node->virtual_start = vir_address;
+            first_node->virtual_start = vir_address;    
             first_node->virtual_end = first_node-> virtual_start+n*PAGE_SIZE - 1 ;
+            vir_address+=n*PAGE_SIZE ;
             subchain_node* subchain = (subchain_node*)mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
             first_node->subchain = subchain ;
             subchain->phys_addr = first_node->phy_addr ;
-            
-                
-        }
+            subchain->size = n*PAGE_SIZE ;
+            subchain->type = 0 ;
+            subchain->virtual_start = first_node->virtual_start ;
+            subchain->virtual_end = first_node->virtual_end ; 
+            printf("%lu\n",subchain->virtual_start);
+            printf("%lu\n",subchain->virtual_end) ;
+            current_pointer_subchain = subchain ;
+
+        }   
 
 
     }
