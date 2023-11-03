@@ -20,7 +20,7 @@ Use this macro where ever you need PAGE_SIZE.
 As PAGESIZE can differ system to system we should have flexibility to modify this 
 macro to make the output of all system same and conduct a fair evaluation. 
 */
-#define PAGE_SIZE 1000
+#define PAGE_SIZE 4096
 typedef struct main_node{
     
     struct main_node* prev ;
@@ -68,6 +68,9 @@ subchain_node* create_new_subchain(){
     }
     else{
         new_sub =(subchain_node* )mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+        if(new_sub == MAP_FAILED){
+            perror("mmap failed");
+        }
         segments[no_of_seg] = (void*)new_sub ;
         segments_size[no_of_seg++] = PAGE_SIZE ;
         init_sub = new_sub ;
@@ -85,6 +88,9 @@ main_node* create_new_main_node(){
     }
     else{
         node = (main_node*)mmap(NULL , PAGE_SIZE , PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+        if(node == MAP_FAILED){
+            perror("mmap failed");
+        }
         segments[no_of_seg] = (void*)node ;
         segments_size[no_of_seg++] = PAGE_SIZE ;
         init_main = node; 
@@ -109,8 +115,6 @@ void merge_holes(subchain_node* subchain){
             }
         }
     }
-
-
 
 }
 
@@ -147,6 +151,9 @@ Returns: Nothing
 void mems_init(){
     vir_address = 1000 ;
     head = (main_node*)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
+    if(head == MAP_FAILED){
+        perror("mmap failed");
+    }
     segments[no_of_seg] = (void*)head ;
     segments_size[no_of_seg++] = PAGE_SIZE ;
     head->next = NULL ;
@@ -253,6 +260,9 @@ void* mems_malloc(size_t size){
                     main_chain = main_chain->next ;
                 }    
                 new_main->phy_addr = mmap(NULL,n*PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0) ;
+                if(new_main->phy_addr == MAP_FAILED){
+                    perror("mmap failed") ;
+                }
                 segments[no_of_seg] = new_main->phy_addr ;
                 segments_size[no_of_seg++] = n*PAGE_SIZE ;
                 //printf("%zu\n",new_main->phy_addr);
@@ -307,6 +317,9 @@ void* mems_malloc(size_t size){
            // printf("%lu\n",first_node) ;
             current_pointer = first_node ;
             first_node->phy_addr = mmap(NULL,n*PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            if(first_node->phy_addr == MAP_FAILED){
+                perror("mmap failed") ;
+            }
             segments[no_of_seg] = first_node->phy_addr ;
             segments_size[no_of_seg++] = n*PAGE_SIZE ;
             //printf("%zu\n",first_node->phy_addr) ;
@@ -318,6 +331,9 @@ void* mems_malloc(size_t size){
             first_node->virtual_end = first_node-> virtual_start+n*PAGE_SIZE - 1 ;
             vir_address+=n*PAGE_SIZE ;
             subchain_node* subchain = (subchain_node*)mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            if(subchain == MAP_FAILED){
+                perror("mmap failed") ;
+            }
             segments[no_of_seg] = (void*)subchain ;
             segments_size[no_of_seg++] = PAGE_SIZE ;
             first_node->subchain = subchain ;
@@ -363,6 +379,7 @@ Parameter: Nothing
 Returns: Nothing but should print the necessary information on STDOUT
 */
 void mems_print_stats(){
+    printf("---------MeMS SYSTEM STATS------------\n");
     main_node* curr_main = head->next ;
     while(curr_main != NULL){
         subchain_node*  curr_sub = curr_main->subchain ;
@@ -420,6 +437,7 @@ void mems_print_stats(){
         printf("%d, ",arr[i]);
     }
     printf("]\n");
+    printf("----------------------------------------\n");
 }
 
 
