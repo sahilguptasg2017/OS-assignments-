@@ -1,15 +1,13 @@
 // include other header files as needed
 #include"mems.h"
-#include <stdio.h>
 
 
 int main(int argc, char const *argv[])
 {
     // initialise the MeMS system 
     mems_init();
-    printf("h1\n") ;
     int* ptr[10];
-    
+
     /*
     This allocates 10 arrays of 250 integers each
     */
@@ -50,5 +48,8 @@ int main(int argc, char const *argv[])
     mems_print_stats();
     ptr[3] = (int*)mems_malloc(sizeof(int)*250);
     mems_print_stats();
-    return 0;   
+
+    printf("\n--------- Unmapping all memory [mems_finish] --------\n\n");
+    mems_finish();
+    return 0;
 }

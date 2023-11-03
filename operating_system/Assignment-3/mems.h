@@ -20,7 +20,7 @@ Use this macro where ever you need PAGE_SIZE.
 As PAGESIZE can differ system to system we should have flexibility to modify this 
 macro to make the output of all system same and conduct a fair evaluation. 
 */
-#define PAGE_SIZE 4096
+#define PAGE_SIZE 1000
 typedef struct main_node{
     
     struct main_node* prev ;
@@ -52,9 +52,9 @@ unsigned long subchain_size = sizeof(struct subchain_node) ;
 struct subchain_node* current_pointer_subchain ;
 struct main_node* init_main ;
 struct subchain_node* init_sub ;
-
-
-//helper functions  .. 
+void* segments[1000] ;
+int no_of_seg = 0 ;
+int segments_size[1000] ;
 
 
 
@@ -68,6 +68,8 @@ subchain_node* create_new_subchain(){
     }
     else{
         new_sub =(subchain_node* )mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+        segments[no_of_seg] = (void*)new_sub ;
+        segments_size[no_of_seg++] = PAGE_SIZE ;
         init_sub = new_sub ;
         current_pointer_subchain = new_sub ;
         return new_sub ;
@@ -83,6 +85,8 @@ main_node* create_new_main_node(){
     }
     else{
         node = (main_node*)mmap(NULL , PAGE_SIZE , PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+        segments[no_of_seg] = (void*)node ;
+        segments_size[no_of_seg++] = PAGE_SIZE ;
         init_main = node; 
         current_pointer = node; 
         return node ;        
@@ -90,6 +94,42 @@ main_node* create_new_main_node(){
 
 }
 
+
+void merge_holes(subchain_node* subchain){
+   
+    if(subchain->next != NULL){
+        while(subchain->next->type == 0){
+            subchain->size = subchain->size + subchain->next->size ;
+
+            subchain->virtual_end = subchain->next->virtual_end ;
+            
+            subchain->next = subchain->next->next ;
+            if(subchain->next == NULL){
+                break;
+            }
+        }
+    }
+
+
+
+}
+
+void finding_subchain(void*v_ptr){
+    main_node* main_start = head->next ;
+    while(main_start!=NULL){
+        subchain_node* subchain_start = main_start->subchain ;
+        while(subchain_start!=NULL){
+            if((unsigned long)v_ptr <= subchain_start->virtual_end && (unsigned long)v_ptr >= subchain_start->virtual_start){
+                subchain_start->type = 0 ;
+                return ;
+            }
+            subchain_start = subchain_start->next ;
+        }
+        main_start = main_start->next ;
+    }
+
+
+}
 
 
 
@@ -107,6 +147,8 @@ Returns: Nothing
 void mems_init(){
     vir_address = 1000 ;
     head = (main_node*)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
+    segments[no_of_seg] = (void*)head ;
+    segments_size[no_of_seg++] = PAGE_SIZE ;
     head->next = NULL ;
     current_pointer=head ;
     init_main = head ;
@@ -123,10 +165,8 @@ Input Parameter: Nothing
 Returns: Nothing
 */
 void mems_finish(){
-    struct main_node* main_chain = head ;
-    while(main_chain != NULL){
-        munmap(&main_chain,main_chain->pages*PAGE_SIZE) ;
-        main_chain = main_chain->next ;
+    for(int i = 0;i<no_of_seg ;i++){
+        munmap(segments[i],segments_size[i]) ;
     }
 }
 
@@ -144,13 +184,26 @@ Parameter: The size of the memory the user program wants
 Returns: MeMS Virtual address (that is created by MeMS)
 */ 
 void* mems_malloc(size_t size){
+    
+    main_node* curr_main = head->next ;
+    while(curr_main != NULL){
+        subchain_node*  curr_sub = curr_main->subchain ;
+        while(curr_sub!=NULL){
+            curr_sub->virtual_end = curr_sub->virtual_start + curr_sub->size - 1;
+            curr_sub = curr_sub->next ;
+        }
+        curr_main = curr_main->next ;
+    }
+    
+    
+    
     int flag = 0 ; 
     int n = 1 ; 
     while(n*PAGE_SIZE < size){
         n++ ;
     }
     
-    printf("mems_mall\n");
+    //printf("mems_mall\n");
 
     if(size == 0){
         return NULL;
@@ -158,27 +211,84 @@ void* mems_malloc(size_t size){
     else{
         //printf("etre\n");
         if(head->next != NULL){
-            printf("head != NULL\n") ;
+            //printf("head != NULL\n") ;
             main_node* main_chain = head ;
+            //printf("%lu\n" , main_chain->phy_addr) ;
             while (main_chain!=NULL) {
                 subchain_node* sub_chain = main_chain->subchain;
                 //need to increase the current_pointer // 
                 while (sub_chain!=NULL) {
                     if(sub_chain->type == 0 && sub_chain->size > size){
-                        
-
+                        subchain_node* new_sub = create_new_subchain() ;
+                        unsigned long virt_end = sub_chain->virtual_end ;
+                        size_t sub_size = sub_chain->size; 
+                        sub_chain->virtual_end = sub_chain->virtual_start + size - 1 ;
+                        sub_chain->size = size ;
+                        sub_chain->type = 1 ;
+                        sub_chain->next = new_sub ;
+                        new_sub->prev = sub_chain ;
+                        new_sub->type = 0 ;
+                        new_sub->phys_addr = sub_chain->phys_addr + sub_chain->size ;
+                        new_sub->size = sub_size - size ;
+                        new_sub->virtual_start = sub_chain->virtual_start + size ;
+                        new_sub->virtual_end = virt_end ;
+                        flag = 1 ;
+                        return (void*) sub_chain->virtual_start ;
 
                     }
                     else if (sub_chain->type == 0 && sub_chain->size==size){
                         //printf("dqwadwq") ;
                         sub_chain->type = 1 ;
+                        flag = 1 ;
                         return (void*)sub_chain->virtual_start;
                     }
                     sub_chain= sub_chain->next ;
                 }
-                
                 main_chain = main_chain->next ;
+            }
+            if(flag == 0){
+                main_node* new_main = create_new_main_node() ;
+                main_node* main_chain = head ;
+                while(main_chain->next != NULL){
+                    main_chain = main_chain->next ;
+                }    
+                new_main->phy_addr = mmap(NULL,n*PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0) ;
+                segments[no_of_seg] = new_main->phy_addr ;
+                segments_size[no_of_seg++] = n*PAGE_SIZE ;
+                //printf("%zu\n",new_main->phy_addr);
+                 // reach the last main node and then add a new main node and do the things  .. 
+                main_chain->next = new_main ;
+                new_main->prev = main_chain ;
 
+                new_main->pages = n ;
+                new_main->virtual_start = new_main->prev->virtual_end + 1 ;
+                new_main->virtual_end = new_main->virtual_start + n*PAGE_SIZE - 1 ;
+                subchain_node* new_subchain = create_new_subchain() ;
+                new_main->subchain = new_subchain ;
+                new_subchain->size = n*PAGE_SIZE ;
+                new_subchain->phys_addr = new_main->phy_addr  ;
+                new_subchain->type = 0;
+                new_subchain->size = n*PAGE_SIZE ;
+                new_subchain->virtual_start = new_main->virtual_start ;
+                new_subchain->virtual_end = new_main->virtual_end ;
+                
+                if(new_subchain->size > size){
+                    subchain_node* newest_subchain = create_new_subchain() ;
+                    new_subchain->next = newest_subchain ;
+                    newest_subchain->prev = new_subchain ; 
+                    new_subchain->virtual_end = new_subchain->virtual_start + size - 1 ;
+                    new_subchain->size = size ; 
+                    new_subchain->type = 1 ;
+                    newest_subchain->phys_addr = newest_subchain->prev->phys_addr + size  ;
+                    newest_subchain->virtual_start = newest_subchain->prev->virtual_start + size ;
+                    newest_subchain->size = new_main->pages*PAGE_SIZE - size ; 
+                    newest_subchain->type = 0 ;
+                    return (void*) new_subchain->virtual_start ;
+                } 
+                else if( new_subchain->size == size){
+                    new_subchain->type = 1 ;
+                    return (void*)new_subchain->virtual_start ;
+                }
             }
         }
         else{
@@ -197,6 +307,9 @@ void* mems_malloc(size_t size){
            // printf("%lu\n",first_node) ;
             current_pointer = first_node ;
             first_node->phy_addr = mmap(NULL,n*PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            segments[no_of_seg] = first_node->phy_addr ;
+            segments_size[no_of_seg++] = n*PAGE_SIZE ;
+            //printf("%zu\n",first_node->phy_addr) ;
             //printf("fefe");     
             head->next = first_node ;
             first_node->prev = head ;
@@ -205,14 +318,16 @@ void* mems_malloc(size_t size){
             first_node->virtual_end = first_node-> virtual_start+n*PAGE_SIZE - 1 ;
             vir_address+=n*PAGE_SIZE ;
             subchain_node* subchain = (subchain_node*)mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
+            segments[no_of_seg] = (void*)subchain ;
+            segments_size[no_of_seg++] = PAGE_SIZE ;
             first_node->subchain = subchain ;
-            subchain->phys_addr = first_node->phy_addr ;
+            subchain->phys_addr = first_node->phy_addr  ;
             subchain->size = n*PAGE_SIZE ;
             subchain->type = 0 ;
             subchain->virtual_start = first_node->virtual_start ;
             subchain->virtual_end = first_node->virtual_end ; 
-            printf("%lu\n",subchain->virtual_start);
-            printf("%lu\n",subchain->virtual_end) ;
+          //  printf("%lu\n",subchain->virtual_start);
+          //  printf("%lu\n",subchain->virtual_end) ;
             current_pointer_subchain = subchain ;
             init_sub = subchain ; 
             if(subchain->size > size){
@@ -227,7 +342,7 @@ void* mems_malloc(size_t size){
                 new_sub->virtual_start = subchain->virtual_start + size ;
                 new_sub->virtual_end = virt_end ;
                 new_sub->type = 0;
-                new_sub->phys_addr = first_node->phy_addr + size ;
+                new_sub->phys_addr = subchain->phys_addr + subchain->size ;
                 return (void*)subchain->virtual_start ;
             }
             else if(subchain->size == size){
@@ -235,13 +350,7 @@ void* mems_malloc(size_t size){
                 return (void*)subchain->virtual_start ;
             }
         }   
-
-
     }
-
-
-
-
 }
 
 
@@ -254,17 +363,91 @@ Parameter: Nothing
 Returns: Nothing but should print the necessary information on STDOUT
 */
 void mems_print_stats(){
+    main_node* curr_main = head->next ;
+    while(curr_main != NULL){
+        subchain_node*  curr_sub = curr_main->subchain ;
+        while(curr_sub!=NULL){
+            curr_sub->virtual_end = curr_sub->virtual_start + curr_sub->size - 1;
+            curr_sub = curr_sub->next ;
+        }
+        curr_main = curr_main->next ;
+    }
+    int counter = 0  ; 
+    int arr[1000] ;
+    int num = 0 ;
+    int pages = 0 ;
+    int mem_unused = 0;
+    main_node* curent_main_node = head->next ;
+    while(curent_main_node != NULL){
+        subchain_node* current_subchain_node = curent_main_node->subchain ;
+        while(current_subchain_node!=NULL){
+            if(current_subchain_node->type == 0){
+                mem_unused += current_subchain_node->size ;
+            }
+            num++ ;
+            current_subchain_node = current_subchain_node->next ;
+        }
+        pages += curent_main_node->pages ;
+        arr[counter++] = num ;
+        num = 0;
+        curent_main_node = curent_main_node->next ;
+    }
 
+
+    int main_chain_len = 0 ;
+    main_node* current_main = head->next;
+    while(current_main!=NULL){
+        printf("MAIN[%lu:%lu]->",current_main->virtual_start,current_main->virtual_end) ;
+        subchain_node* current_subchain = current_main->subchain ;
+        while(current_subchain!=NULL){
+            if(current_subchain->type == 0){
+                printf("H[%lu:%lu]<->",current_subchain->virtual_start , current_subchain->virtual_end);
+            }
+            else{
+                printf("P[%lu:%lu]<->",current_subchain->virtual_start , current_subchain->virtual_end);
+            }
+            current_subchain = current_subchain->next ;
+        }
+        printf("NULL\n") ;
+        main_chain_len+=1 ;
+        current_main = current_main->next ;
+    }
+    printf("Pages used:    %d\n",pages) ;
+    printf("Space unused:  %d\n",mem_unused) ;
+    printf("Main Chain Length:    %d\n",main_chain_len) ;
+    printf("Sub-Chain Length array: [") ;
+    for(int i = 0 ; i < counter ; i++){
+        printf("%d, ",arr[i]);
+    }
+    printf("]\n");
 }
 
 
 /*
 Returns the MeMS physical address mapped to ptr ( ptr is MeMS virtual address).
 Parameter: MeMS Virtual address (that is created by MeMS)
-Returns: MeMS physical address mapped to the passed ptr (MeMS virtual address).
+Returns: MeMS physical address mapped to the passed     ptr (MeMS virtual address).
 */
 void *mems_get(void*v_ptr){
     
+    main_node* current_main = head->next ;
+    // while(current_main != NULL){
+    //     printf("%zu\n" , current_main->phy_addr) ;
+
+    //     current_main = current_main->next ;
+    // }
+
+    //return head->next->phy_addr ;
+    while(current_main!=NULL){
+        if(current_main->virtual_start<=(unsigned long)v_ptr){
+            break; 
+        }
+        current_main = current_main->next ;
+    }
+
+    return (void*)((unsigned long)current_main->phy_addr + (unsigned long) v_ptr - current_main->virtual_start);
+
+
 }
 
 
@@ -274,6 +457,22 @@ Parameter: MeMS Virtual address (that is created by MeMS)
 Returns: nothing
 */
 void mems_free(void *v_ptr){
+    
+    finding_subchain(v_ptr);
+
+
+    main_node* curr_main = head->next ;
+    while(curr_main!=NULL){
+        subchain_node* curr_subchain = curr_main->subchain ;
+        while(curr_subchain != NULL){
+            if(curr_subchain->type == 0){
+                merge_holes(curr_subchain) ;
+
+            }
+            curr_subchain = curr_subchain->next ;
+        }
+        curr_main = curr_main->next ;
+    }
 
     
 }
