@@ -67,6 +67,7 @@ subchain_node* create_new_subchain(){
         return new_sub ;
     }
     else{
+        printf("dkqwodwq") ;
         new_sub =(subchain_node* )mmap(NULL,PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
         if(new_sub == MAP_FAILED){
             perror("mmap failed");
@@ -84,6 +85,7 @@ main_node* create_new_main_node(){
     if(current_pointer+main_node_size<init_main+PAGE_SIZE){
         node = (main_node*)((unsigned char*)current_pointer + main_node_size);
         current_pointer = node ;
+        //printf("gg\n") ;
         return node ;
     }
     else{
@@ -161,7 +163,7 @@ void mems_init(){
     init_main = head ;
 //    printf("%lu",(unsigned long)current_pointer) ;    
 
-
+    printf("%lu",subchain_size);
 }
 
 
@@ -173,7 +175,8 @@ Returns: Nothing
 */
 void mems_finish(){
     for(int i = 0;i<no_of_seg ;i++){
-        munmap(segments[i],segments_size[i]) ;
+        if(munmap(segments[i],segments_size[i])==-1) 
+            perror("munmap failed");
     }
 }
 
@@ -457,7 +460,7 @@ void *mems_get(void*v_ptr){
 
     //return head->next->phy_addr ;
     while(current_main!=NULL){
-        if(current_main->virtual_start<=(unsigned long)v_ptr){
+        if(current_main->virtual_start<=(unsigned long)v_ptr && current_main->virtual_end>=(unsigned long)v_ptr){
             break; 
         }
         current_main = current_main->next ;
