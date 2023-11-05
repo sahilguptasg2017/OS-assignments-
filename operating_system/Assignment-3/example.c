@@ -6,14 +6,14 @@ int main(int argc, char const *argv[])
 {
     // initialise the MeMS system 
     mems_init();
-    int* ptr[73];
+    int* ptr[10];
 
     /*
     This allocates 10 arrays of 250 integers each
     */
     printf("\n------- Allocated virtual addresses [mems_malloc] -------\n");
-    for(int i=0;i<73;i++){
-        ptr[i] = (int*)mems_malloc(sizeof(int)*4095);
+    for(int i=0;i<10;i++){
+        ptr[i] = (int*)mems_malloc(sizeof(int)*250);
         printf("Virtual address: %lu\n", (unsigned long)ptr[i]);
     }
 
