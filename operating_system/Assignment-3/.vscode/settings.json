@@ -34,5 +34,9 @@
     "**/.vscode/**"
   ],
   "C_Cpp_Runner.useAddressSanitizer": false,
-  "cmake.configureOnOpen": true
+  "cmake.configureOnOpen": true,
+  "files.associations": {
+    "stdint.h": "c",
+    "stdio.h": "c"
+  }
 }
