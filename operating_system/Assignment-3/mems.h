@@ -44,6 +44,8 @@ typedef struct subchain_node{
       
 }subchain_node; 
 
+
+
 unsigned long vir_address ;
 struct main_node* head = NULL;
 struct main_node* current_pointer = NULL;
@@ -52,26 +54,44 @@ unsigned long subchain_size = sizeof(struct subchain_node) ;
 struct subchain_node* current_pointer_subchain = NULL;
 struct main_node* init_main = NULL;
 struct subchain_node* init_sub = NULL;
-void* segments[1000] ;
+void* segments[100000000] ;
 int no_of_seg = 0 ;
-int segments_size[1000] ;
-
-
+int segments_size[100000000] ;
+int chain_count = 1;
+int subchain_count_ls = 1 ;
 
 // helper functions 
+
+
+int rounded_val(int x){
+    if(x%4096 == 0){
+        return x ;
+    }
+    else{
+        return ((x/4096) + 1) *4096 ; 
+    }
+
+
+}
+
+
 subchain_node* create_new_subchain(subchain_node* new_sub){
     //subchain_node* new_sub = NULL ;
-    if(current_pointer_subchain + subchain_size <= init_sub + PAGE_SIZE){
+    if((unsigned long)current_pointer_subchain + subchain_size <= (unsigned long)init_sub + PAGE_SIZE && subchain_count_ls%(rounded_val(PAGE_SIZE)/subchain_size  - 1 ) != 0){
         new_sub =(subchain_node* )((unsigned char*)current_pointer_subchain+subchain_size) ;
         current_pointer_subchain = new_sub ;
+        subchain_count_ls ++ ;
+        //printf("%d\n",subchain_count_ls) ;
         return new_sub ;
     }
     else {
-        //printf("dkqwodwq") ;
+        //printf("here\n") ;
         new_sub =(subchain_node* )mmap(NULL,PAGE_SIZE*1,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
         if(new_sub == MAP_FAILED){
             perror("mmap failed");
         }
+        subchain_count_ls++ ;
+       // printf("%d\n",subchain_count_ls);
         segments[no_of_seg] = (void*)new_sub ;
         segments_size[no_of_seg++] = PAGE_SIZE ;
         init_sub = new_sub ;
@@ -83,21 +103,26 @@ subchain_node* create_new_subchain(subchain_node* new_sub){
 }
 
 main_node* create_new_main_node(main_node* node){
-    printf("this is first term: %u  \n",(unsigned long)current_pointer+main_node_size) ;
-    printf("this is second term: %u  \n",(unsigned long)init_main+PAGE_SIZE) ;
+    
+   // printf("this is first term: %u  \n",(unsigned long)current_pointer+main_node_size) ;
+   // printf("this is second term: %u  \n",(unsigned long)init_main+PAGE_SIZE) ;
     //main_node* node = NULL ;
-    if((unsigned long)current_pointer+main_node_size<=(unsigned long)init_main+PAGE_SIZE){
+    if((unsigned long)current_pointer+main_node_size < (unsigned long)init_main+(unsigned long)PAGE_SIZE && chain_count%(rounded_val(PAGE_SIZE)/main_node_size -1)!=0){
         node = (main_node*)((unsigned char*)current_pointer + main_node_size);
-        current_pointer = node; 
-        printf("gg\n") ;
+        current_pointer = node;
+        chain_count ++ ; 
+       // printf("%d\n",chain_count) ;
+        //printf("gg\n") ;
         return node ;
     }
     else{
-        printf("here\n") ;
+      printf("here\n") ;
         node = (main_node*)mmap(NULL, PAGE_SIZE*1, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
         if(node == MAP_FAILED){
             perror("mmap failed");
         }
+        chain_count++ ;
+    //    printf("%d" , chain_count) ;
         segments[no_of_seg] = (void*)node ;
         segments_size[no_of_seg++] = PAGE_SIZE ;
         init_main = node; 
@@ -131,7 +156,8 @@ void finding_subchain(void*v_ptr){
     while(main_start!=NULL){
         subchain_node* subchain_start = main_start->subchain ;
         while(subchain_start!=NULL){
-            if((unsigned long)v_ptr <= subchain_start->virtual_end && (unsigned long)v_ptr >= subchain_start->virtual_start){
+           // printf("%u %u \n",(unsigned long)v_ptr ,subchain_start->virtual_start ) ;
+            if((unsigned long)v_ptr == subchain_start->virtual_start){
                 subchain_start->type = 0 ;
                 return ;
             }
@@ -139,7 +165,6 @@ void finding_subchain(void*v_ptr){
         }
         main_start = main_start->next ;
     }
-
 
 }
 
@@ -165,10 +190,13 @@ void mems_init(){
     head->next = NULL ;
     current_pointer=head ;
     init_main = head ;
+   // printf("%d\n" , rounded_val(PAGE_SIZE)) ;
+    //printf("%d\n",rounded_val(PAGE_SIZE)/main_node_size) ;
+    //printf("%d\n",rounded_val(PAGE_SIZE)/main_node_size  - 1 ) ;
 //    printf("%lu",(unsigned long)current_pointer) ;    
 
-    printf("%lu\n",sizeof(subchain_node));
-    printf("%lu\n",sizeof(main_node));
+   // printf("%lu\n",sizeof(subchain_node));
+  //  printf("%lu\n",sizeof(main_node));
 }
 
 
@@ -270,8 +298,10 @@ void* mems_malloc(size_t size){
                 while(main_chain->next != NULL){
                     main_chain = main_chain->next ;
                 }    
+                
                 void* temp = mmap(NULL,n*PAGE_SIZE,PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE , -1, 0);
-                new_main->phy_addr =  (void*)temp;
+                new_main->pages = n ;
+                new_main->phy_addr = temp;
                 if(new_main->phy_addr == MAP_FAILED){
                     perror("mmap failed") ;
                 }
@@ -281,8 +311,6 @@ void* mems_malloc(size_t size){
                  // reach the last main node and then add a new main node and do the things  .. 
                 main_chain->next = new_main ;
                 new_main->prev = main_chain ;
-
-                new_main->pages = n ;
                 new_main->virtual_start = new_main->prev->virtual_end + 1 ;
                 new_main->virtual_end = new_main->virtual_start + n*PAGE_SIZE - 1 ;
                 subchain_node* new_subchain = NULL ;
@@ -474,16 +502,17 @@ void *mems_get(void*v_ptr){
 
     //     current_main = current_main->next ;
     // }
-
+    void* physical_address_lololo = NULL ;
     //return head->next->phy_addr ;
     while(current_main!=NULL){
         if(current_main->virtual_start<=(unsigned long)v_ptr && current_main->virtual_end>=(unsigned long)v_ptr){
+            physical_address_lololo = (void*)((unsigned long)current_main->phy_addr + (unsigned long) v_ptr - current_main->virtual_start) ;
             break; 
         }
         current_main = current_main->next ;
     }
 
-    return (void*)((unsigned long)current_main->phy_addr + (unsigned long) v_ptr - current_main->virtual_start);
+    return physical_address_lololo;
 
 
 }
