@@ -178,7 +178,7 @@ void mems_init(){
     if(head == MAP_FAILED){
         perror("mmap failed");
     }
-     head->next = NULL ;
+                                                                                                                                                head->next = NULL ;
     current_pointer=head ;
     init_main = head ;
    // printf("%d\n" , rounded_val(PAGE_SIZE)) ;
