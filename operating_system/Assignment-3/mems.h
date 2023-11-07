@@ -9,7 +9,7 @@ you can also make additional helper functions a you wish
 REFER DOCUMENTATION FOR MORE DETAILS ON FUNSTIONS AND THEIR FUNCTIONALITY
 */
 // add other headers as required
-#include <inttypes.h>
+
 #include <stdint.h>
 #include<stdio.h>
 #include<stdlib.h>
