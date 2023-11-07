@@ -54,9 +54,6 @@ unsigned long subchain_size = sizeof(struct subchain_node) ;
 struct subchain_node* current_pointer_subchain = NULL;
 struct main_node* init_main = NULL;
 struct subchain_node* init_sub = NULL;
-void* segments[200000000] ;
-int no_of_seg = 0 ;
-int segments_size[200000000] ;
 int chain_count = 1;
 int subchain_count_ls = 1 ;
 
@@ -92,9 +89,7 @@ subchain_node* create_new_subchain(subchain_node* new_sub){
         }
         subchain_count_ls++ ;
        // printf("%d\n",subchain_count_ls);
-        segments[no_of_seg] = (void*)new_sub ;
-        segments_size[no_of_seg++] = PAGE_SIZE ;
-        init_sub = new_sub ;
+     init_sub = new_sub ;
         current_pointer_subchain = new_sub ;
         new_sub =(subchain_node* )((unsigned char*)current_pointer_subchain+subchain_size) ;
         current_pointer_subchain = new_sub ; 
@@ -123,9 +118,7 @@ main_node* create_new_main_node(main_node* node){
         }
         chain_count++ ;
     //    printf("%d" , chain_count) ;
-        segments[no_of_seg] = (void*)node ;
-        segments_size[no_of_seg++] = PAGE_SIZE ;
-        init_main = node; 
+         init_main = node; 
         current_pointer = node; 
         node = (main_node*)((unsigned char*)current_pointer + main_node_size);
         current_pointer = node ;
@@ -185,9 +178,7 @@ void mems_init(){
     if(head == MAP_FAILED){
         perror("mmap failed");
     }
-    segments[no_of_seg] = (void*)head ;
-    segments_size[no_of_seg++] = PAGE_SIZE ;
-    head->next = NULL ;
+     head->next = NULL ;
     current_pointer=head ;
     init_main = head ;
    // printf("%d\n" , rounded_val(PAGE_SIZE)) ;
@@ -207,10 +198,27 @@ Input Parameter: Nothing
 Returns: Nothing
 */
 void mems_finish(){
-    for(int i = 0;i<no_of_seg ;i++){
-        if(munmap(segments[i],segments_size[i])==-1) 
+    // main_node* start = head ;
+    // while (start != NULL){
+    //     main_node* temp = start ;
+    //     munmap(start,start->pages * PAGE_SIZE) ;
+    //     subchain_node* subchain_start = temp->subchain ;
+    //     while(subchain_start != NULL){
+    //         subchain_node* temp1 = subchain_start ;
+    //         munmap(subchain_start , ) ;
+    //         subchain_start = temp1->next ;
+    //     } 
+    //     start = temp->next ;
+    // }
+    main_node* start  = head->next ;
+    while(start != NULL){
+        if(munmap(start->phy_addr , start->pages * PAGE_SIZE) == -1){
             perror("munmap failed");
+        }            
+        start = start->next ;
     }
+    head = NULL ;
+        
 }
 
 
@@ -306,9 +314,7 @@ void* mems_malloc(size_t size){
                 if(new_main->phy_addr == MAP_FAILED){
                     perror("mmap failed") ;
                 }
-                segments[no_of_seg] = new_main->phy_addr ;
-                segments_size[no_of_seg++] = n*PAGE_SIZE ;
-                //printf("%zu\n",new_main->phy_addr);
+               //printf("%zu\n",new_main->phy_addr);
                  // reach the last main node and then add a new main node and do the things  .. 
                 main_chain->next = new_main ;
                 new_main->prev = main_chain ;
@@ -365,8 +371,6 @@ void* mems_malloc(size_t size){
             if(first_node->phy_addr == MAP_FAILED){
                 perror("mmap failed") ;
             }
-            segments[no_of_seg] = first_node->phy_addr ;
-            segments_size[no_of_seg++] = n*PAGE_SIZE ;
             //printf("%zu\n",first_node->phy_addr) ;
             //printf("fefe");     
             head->next = first_node ;
@@ -379,8 +383,6 @@ void* mems_malloc(size_t size){
             if(subchain == MAP_FAILED){
                 perror("mmap failed") ;
             }
-            segments[no_of_seg] = (void*)subchain ;
-            segments_size[no_of_seg++] = PAGE_SIZE ;
             first_node->next = NULL;
             first_node->subchain = subchain ;
             subchain->phys_addr = first_node->phy_addr  ;
@@ -429,6 +431,13 @@ Returns: Nothing but should print the necessary information on STDOUT
 */
 void mems_print_stats(){
     printf("---------MeMS SYSTEM STATS------------\n");
+    if(head == NULL){
+        printf("Pages used:    %d\n",0) ;
+        printf("Space unused:  %d\n",0) ;
+        printf("Main Chain Length:    %d\n",0) ;
+        printf("Sub-Chain Length array: []\n") ;
+        return ;
+    }
     main_node* curr_main = head->next ;
     while(curr_main != NULL){
         subchain_node*  curr_sub = curr_main->subchain ;
@@ -438,9 +447,9 @@ void mems_print_stats(){
         }
         curr_main = curr_main->next ;
     }
-    int counter = 0  ; 
-    int arr[999999] ;
-    int num = 0 ;
+    //int counter = 0  ; 
+    //int arr[999999] ;
+    //int num = 0 ;
     int pages = 0 ;
     int mem_unused = 0;
     main_node* curent_main_node = head->next ;
@@ -450,12 +459,12 @@ void mems_print_stats(){
             if(current_subchain_node->type == 0){
                 mem_unused += current_subchain_node->size ;
             }
-            num++ ;
+         //   num++ ;
             current_subchain_node = current_subchain_node->next ;
         }
         pages += curent_main_node->pages ;
-        arr[counter++] = num ;
-        num = 0;
+        //arr[counter++] = num ;
+        //num = 0;
         curent_main_node = curent_main_node->next ;
     }
 
@@ -482,9 +491,21 @@ void mems_print_stats(){
     printf("Space unused:  %d\n",mem_unused) ;
     printf("Main Chain Length:    %d\n",main_chain_len) ;
     printf("Sub-Chain Length array: [") ;
-    for(int i = 0 ; i < counter ; i++){
-        printf("%d, ",arr[i]);
+    main_node* curr_mainnode = head->next ;
+    while(curr_mainnode !=NULL){    
+        subchain_node* curr_subchain = curr_mainnode->subchain ;
+        int subchain_size = 0 ;
+        while(curr_subchain != NULL) {
+            subchain_size++;
+            curr_subchain = curr_subchain->next ;
+        }
+        printf("%d, ",subchain_size) ;    
+        curr_mainnode = curr_mainnode->next ;
     }
+    // printf("Sub-Chain Length array: [") ;
+    // for(int i = 0 ; i < counter ; i++){
+    //     printf("%d, ",arr[i]);
+    // }
     printf("]\n");
     printf("----------------------------------------\n");
 }
