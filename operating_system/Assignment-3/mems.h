@@ -54,9 +54,9 @@ unsigned long subchain_size = sizeof(struct subchain_node) ;
 struct subchain_node* current_pointer_subchain = NULL;
 struct main_node* init_main = NULL;
 struct subchain_node* init_sub = NULL;
-void* segments[100000000] ;
+void* segments[200000000] ;
 int no_of_seg = 0 ;
-int segments_size[100000000] ;
+int segments_size[200000000] ;
 int chain_count = 1;
 int subchain_count_ls = 1 ;
 
@@ -107,7 +107,7 @@ main_node* create_new_main_node(main_node* node){
    // printf("this is first term: %u  \n",(unsigned long)current_pointer+main_node_size) ;
    // printf("this is second term: %u  \n",(unsigned long)init_main+PAGE_SIZE) ;
     //main_node* node = NULL ;
-    if((unsigned long)current_pointer+main_node_size < (unsigned long)init_main+(unsigned long)PAGE_SIZE && chain_count%(rounded_val(PAGE_SIZE)/main_node_size -1)!=0){
+    if((unsigned long)current_pointer+main_node_size < (unsigned long)init_main+(unsigned long)PAGE_SIZE && chain_count%(rounded_val(PAGE_SIZE)/main_node_size -1)!=0 ){
         node = (main_node*)((unsigned char*)current_pointer + main_node_size);
         current_pointer = node;
         chain_count ++ ; 
@@ -116,7 +116,7 @@ main_node* create_new_main_node(main_node* node){
         return node ;
     }
     else{
-      printf("here\n") ;
+      //printf("here\n") ;
         node = (main_node*)mmap(NULL, PAGE_SIZE*1, PROT_READ|PROT_WRITE,MAP_ANONYMOUS|MAP_PRIVATE ,-1,0) ;
         if(node == MAP_FAILED){
             perror("mmap failed");
@@ -249,6 +249,7 @@ void* mems_malloc(size_t size){
     //printf("mems_mall\n");
 
     if(size == 0){
+        printf("please give a size\n") ;
         return NULL;
     }
     else{
@@ -438,7 +439,7 @@ void mems_print_stats(){
         curr_main = curr_main->next ;
     }
     int counter = 0  ; 
-    int arr[1000] ;
+    int arr[999999] ;
     int num = 0 ;
     int pages = 0 ;
     int mem_unused = 0;
@@ -502,17 +503,17 @@ void *mems_get(void*v_ptr){
 
     //     current_main = current_main->next ;
     // }
-    void* physical_address_lololo = NULL ;
+    void* phys_addr_for_vptr = NULL ;
     //return head->next->phy_addr ;
     while(current_main!=NULL){
         if(current_main->virtual_start<=(unsigned long)v_ptr && current_main->virtual_end>=(unsigned long)v_ptr){
-            physical_address_lololo = (void*)((unsigned long)current_main->phy_addr + (unsigned long) v_ptr - current_main->virtual_start) ;
+            phys_addr_for_vptr = (void*)((unsigned long)current_main->phy_addr + (unsigned long) v_ptr - current_main->virtual_start) ;
             break; 
         }
         current_main = current_main->next ;
     }
 
-    return physical_address_lololo;
+    return phys_addr_for_vptr;
 
 
 }

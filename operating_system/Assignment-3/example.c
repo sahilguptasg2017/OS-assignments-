@@ -6,14 +6,14 @@ int main(int argc, char const *argv[])
 {
     // initialise the MeMS system 
     mems_init();
-    int* ptr[100000];
+    int* ptr[1000000];
 
     /*
     This allocates 10 arrays of 250 integers each
     */
     printf("\n------- Allocated virtual addresses [mems_malloc] -------\n");
-    for(int i=0;i<73;i++){
-        ptr[i] = (int*)mems_malloc(sizeof(int)*100000000);
+    for(int i=0;i<1000000;i++){
+        ptr[i] = (int*)mems_malloc(sizeof(int)*100000);
         printf("Virtual address: %lu\n", (unsigned long)ptr[i]);
     }
 
@@ -44,9 +44,9 @@ int main(int argc, char const *argv[])
     reallocating the space that will be fullfilled by the free list.
     */
     printf("\n--------- Freeing up the memory [mems_free] --------\n");
-    mems_free(ptr[0]);
+    mems_free(ptr[3]);
     mems_print_stats();
-    //ptr[3] = (int*)mems_malloc(sizeof(int)*250);
+    ptr[3] = (int*)mems_malloc(sizeof(int)*250);
     mems_print_stats();
 
     printf("\n--------- Unmapping all memory [mems_finish] --------\n\n");
