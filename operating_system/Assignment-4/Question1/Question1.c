@@ -17,7 +17,7 @@ int right ( int p ){
 }
 
 void* philospher(void* args){   
-
+    
 }
 
 
