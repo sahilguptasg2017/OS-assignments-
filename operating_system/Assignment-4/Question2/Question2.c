@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-
+#include <semaphore.h>
 
 
 
@@ -35,8 +35,10 @@ void offboard(){
 
 int main(){
     int total_passengers ;
-    scanf("%d",&total_passengers);
-    
+    scanf("%d\n",&total_passengers);
+    int capacity ; 
+    scanf("%d\n",&capacity) ;
+    1
 
 
 
