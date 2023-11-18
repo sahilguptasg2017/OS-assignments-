@@ -38,7 +38,7 @@ int main(){
     scanf("%d\n",&total_passengers);
     int capacity ; 
     scanf("%d\n",&capacity) ;
-    1
+    
 
 
 
