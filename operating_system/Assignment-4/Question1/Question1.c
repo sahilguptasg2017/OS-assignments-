@@ -33,10 +33,23 @@ void* philosopher(void* args) {
     int right_fork = right(id);
     while (1) {
         thinking(id);
-
-        pthread_mutex_lock(&forks[left_fork]);
-        pthread_mutex_lock(&forks[right_fork]);
-
+        if(id%2 == 0){
+            printf("Philosopher %d is waiting for %d fork\n",id,left_fork) ;
+            pthread_mutex_lock(&forks[left_fork]);
+            printf("Philosopher %d is taking %d fork\n",id,left_fork) ;
+            printf("Philosopher %d is waiting for %d fork\n",id,right_fork) ;
+            pthread_mutex_lock(&forks[right_fork]);
+            printf("Philosopher %d is taking %d fork\n",id,right_fork) ;
+        }
+        else{
+            printf("Philosopher %d is waiting for %d fork\n",id,right_fork) ;
+            pthread_mutex_lock(&forks[right_fork]);
+            printf("Philosopher %d is taking %d fork\n",id,right_fork) ;    
+            printf("Philosopher %d is waiting for %d fork\n",id,left_fork) ;
+            pthread_mutex_lock(&forks[left_fork]); 
+            printf("Philosopher %d is taking %d fork\n",id,left_fork) ;
+        }
+        
         int bowl_id = -1;
         pthread_mutex_lock(&mutex);
         while (bowl_id == -1) {
@@ -45,6 +58,7 @@ void* philosopher(void* args) {
                     bowl_id = i;
                     bowl_available[i] = 0;
                     pthread_mutex_lock(&bowl[i]);
+                    printf("philosopher %d is taking bowl %d\n",id,bowl_id)   ;
                     break;
                 }
             }
@@ -52,7 +66,6 @@ void* philosopher(void* args) {
             if (bowl_id == -1) {
                 pthread_mutex_unlock(&forks[right_fork]);
                 pthread_mutex_unlock(&forks[left_fork]);
-
                 pthread_cond_wait(&bowl_condition[0], &mutex);
             }
         }
@@ -61,13 +74,23 @@ void* philosopher(void* args) {
         eating(id);
 
         pthread_mutex_unlock(&bowl[bowl_id]);
+        printf("philosopher %d is dropping bowl %d\n",id,bowl_id)  ;
         pthread_mutex_lock(&mutex);
         bowl_available[bowl_id] = 1;
         pthread_mutex_unlock(&mutex);
         pthread_cond_signal(&bowl_condition[0]);
-
-        pthread_mutex_unlock(&forks[right_fork]);
-        pthread_mutex_unlock(&forks[left_fork]);
+        if(id%2 ==0){
+            pthread_mutex_unlock(&forks[right_fork]);
+            printf("Philosopher %d is dropping %d fork\n",id,right_fork) ;    
+            pthread_mutex_unlock(&forks[left_fork]);
+            printf("Philosopher %d is dropping %d fork\n",id,left_fork) ;
+        }
+        else{
+            pthread_mutex_unlock(&forks[left_fork]);
+            printf("Philosopher %d is dropping %d fork\n",id,left_fork) ;    
+            pthread_mutex_unlock(&forks[right_fork]);
+            printf("Philosopher %d is dropping %d fork\n",id,right_fork) ;    
+        }
     }
 }
 
