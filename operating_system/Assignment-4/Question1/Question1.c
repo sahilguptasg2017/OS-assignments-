@@ -34,20 +34,20 @@ void* philosopher(void* args) {
     while (1) {
         thinking(id);
         if(id%2 == 0){
-            printf("Philosopher %d is waiting for %d fork\n",id,left_fork) ;
+            printf("Philosopher %d is waiting for fork %d\n",id,left_fork) ;
             pthread_mutex_lock(&forks[left_fork]);
-            printf("Philosopher %d is taking %d fork\n",id,left_fork) ;
-            printf("Philosopher %d is waiting for %d fork\n",id,right_fork) ;
+            printf("Philosopher %d is taking fork %d\n",id,left_fork) ;
+            printf("Philosopher %d is waiting for fork %d\n",id,right_fork) ;
             pthread_mutex_lock(&forks[right_fork]);
-            printf("Philosopher %d is taking %d fork\n",id,right_fork) ;
+            printf("Philosopher %d is taking fork %d\n",id,right_fork) ;
         }
         else{
-            printf("Philosopher %d is waiting for %d fork\n",id,right_fork) ;
+            printf("Philosopher %d is waiting for fork %d\n",id,right_fork) ;
             pthread_mutex_lock(&forks[right_fork]);
-            printf("Philosopher %d is taking %d fork\n",id,right_fork) ;    
-            printf("Philosopher %d is waiting for %d fork\n",id,left_fork) ;
+            printf("Philosopher %d is taking fork %d\n",id,right_fork) ;    
+            printf("Philosopher %d is waiting for fork %d\n",id,left_fork) ;
             pthread_mutex_lock(&forks[left_fork]); 
-            printf("Philosopher %d is taking %d fork\n",id,left_fork) ;
+            printf("Philosopher %d is taking fork %d\n",id,left_fork) ;
         }
         
         int bowl_id = -1;
@@ -81,15 +81,15 @@ void* philosopher(void* args) {
         pthread_cond_signal(&bowl_condition[0]);
         if(id%2 ==0){
             pthread_mutex_unlock(&forks[right_fork]);
-            printf("Philosopher %d is dropping %d fork\n",id,right_fork) ;    
+            printf("Philosopher %d is dropping fork %d\n",id,right_fork) ;    
             pthread_mutex_unlock(&forks[left_fork]);
-            printf("Philosopher %d is dropping %d fork\n",id,left_fork) ;
+            printf("Philosopher %d is dropping fork %d\n",id,left_fork) ;
         }
         else{
             pthread_mutex_unlock(&forks[left_fork]);
-            printf("Philosopher %d is dropping %d fork\n",id,left_fork) ;    
+            printf("Philosopher %d is dropping fork %d\n",id,left_fork) ;    
             pthread_mutex_unlock(&forks[right_fork]);
-            printf("Philosopher %d is dropping %d fork\n",id,right_fork) ;    
+            printf("Philosopher %d is dropping fork %d\n",id,right_fork) ;    
         }
     }
 }
