@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MAX_CARS 100
+#define MAX_CARS 100000
 #define MAX_ON_BRIDGE 5
 // sem_t bin;
 struct Node {
@@ -64,9 +64,9 @@ int cars_on_bridge = 0;
 int waiting_left = 0;
 struct Node * headl;
 struct Node * headr;
-pthread_mutex_t leftlock;
-pthread_mutex_t rightlock;
-pthread_mutex_t lock2;
+sem_t leftlock;
+sem_t rightlock;
+sem_t lock2;
 int waiting_right = 0;
 int tmpr=5;
 // void pr(){
@@ -88,7 +88,8 @@ void passing(int dir, int car_num) {
             sleep(
                 3);
         }
-        pthread_mutex_lock(&leftlock);
+        sem_wait(&leftlock);
+        // pthread_mutex_lock(&leftlock);
         printf("Car from left side with ID %d is crossing the bridge.\n", car_num);
         sem_wait(&mutext2);
         struct Node *node = headl;
@@ -98,10 +99,12 @@ void passing(int dir, int car_num) {
         // pr();
         tmpl--;
         // sem_post(&mutext2);
-        pthread_mutex_unlock(&leftlock);
+        sem_post(&leftlock);
+        // pthread_mutex_unlock(&leftlock);
         sleep(1);
         // sem_wait(&mutext2);
-        pthread_mutex_lock(&leftlock);
+        sem_wait(&leftlock);
+        // pthread_mutex_lock(&leftlock);
         if (headl->next->data==car_num){
             sem_wait(&mutext2);
             pop(&headl);
@@ -118,16 +121,21 @@ void passing(int dir, int car_num) {
             // displayList(headl);
             sem_post(&mutext2);
         }
-        pthread_mutex_unlock(&leftlock);
+        // pthread_mutex_unlock(&leftlock);
+        sem_post(&leftlock);
         // sem_post(&mutext2);
         // pr();
         sem_wait(&mutext2);
-        pthread_mutex_lock(&lock2);
+        sem_wait(&lock2);
+        // pthread_mutex_lock(&lock2);
         printf("Car from left side with ID %d crossed the bridge.\n", car_num);
-        pthread_mutex_unlock(&lock2);
+        sem_post(&lock2);
+        // pthread_mutex_unlock(&lock2);
+        // sem_post(&lock2);
         sem_post(&mutext2);
         tmpl++;
-        pthread_mutex_unlock(&leftlock);
+        sem_post(&leftlock);
+        // pthread_mutex_unlock(&leftlock);
         sem_wait(&mutex);
         waiting_left--;
         sem_post(&mutex);
@@ -142,7 +150,8 @@ void passing(int dir, int car_num) {
         while(tmpl<5 || tmpr<=0){
             sleep(1);
         }
-        pthread_mutex_lock(&rightlock);
+        sem_wait(&rightlock);
+        // pthread_mutex_lock(&rightlock);
         printf("Car from right side with ID %d is crossing the bridge.\n", car_num);
         sem_wait(&mutext2);
         // buff2[car_num-1] =1;
@@ -150,10 +159,12 @@ void passing(int dir, int car_num) {
         append(&headr, car_num);
         sem_post(&mutext2);
         tmpr--;
-        pthread_mutex_unlock(&rightlock);
+        sem_post(&rightlock);
+        // pthread_mutex_unlock(&rightlock);
         sleep(1);
         // pthread_mutex_lock(&rightlock);
-        pthread_mutex_lock(&rightlock);
+        sem_wait(&rightlock);
+        // pthread_mutex_lock(&rightlock);
         if (headr->next->data==car_num){
             sem_wait(&mutext2);
             pop(&headr); 
@@ -167,7 +178,8 @@ void passing(int dir, int car_num) {
             pop(&headr);
             sem_post(&mutext2);
         }
-        pthread_mutex_unlock(&rightlock);
+        sem_post(&rightlock);
+        // pthread_mutex_unlock(&rightlock);
         // if (flag==0)
         sem_wait(&mutext2);
         printf("Car from right side with ID %d crossed the bridge.\n", car_num);
@@ -184,6 +196,7 @@ void passing(int dir, int car_num) {
 }
 
 void *left(void *args) {
+    // sleep(10);
     int car_num = *((int *)args);
     passing(1, car_num);
     pthread_exit(NULL);
@@ -207,31 +220,49 @@ int main() {
     sem_init(&bridge, 0, MAX_ON_BRIDGE);
     sem_init(&mutex, 0, 1);
     sem_init(&mutext2, 0, 1);
-    pthread_mutex_init(&leftlock,NULL);
-    pthread_mutex_init(&rightlock,NULL);
-    pthread_mutex_init(&lock2,NULL);
+    sem_init(&leftlock,0,1);
+    sem_init(&rightlock,0,1);
+    sem_init(&lock2,0,1);
     for (int i = 0; i < num_left; ++i) {
         int *arg = (int *)malloc(sizeof(*arg));
         *arg = i + 1;
-        pthread_create(&left_threads[i], NULL, left, arg);
+        if (pthread_create(&left_threads[i], NULL, left, arg)==-1){
+            perror("Threading failed");
+            exit(-1);
+        };
     }
 
     for (int i = 0; i < num_right; ++i) {
         int *arg = (int *)malloc(sizeof(*arg));
         *arg = i + 1;
-        pthread_create(&right_threads[i], NULL, right, arg);
+        if (pthread_create(&right_threads[i], NULL, right, arg)==-1){
+            perror("Threading failed");
+            exit(-1);
+        };
     }
 
     for (int i = 0; i < num_left; ++i) {
-        pthread_join(left_threads[i], NULL);
+        if (pthread_join(left_threads[i], NULL)==-1){
+            perror("Thread join unsuccessfull");
+            exit(-1);
+        };
     }
 
     for (int i = 0; i < num_right; ++i) {
-        pthread_join(right_threads[i], NULL);
+        if (pthread_join(right_threads[i], NULL)==-1){
+            perror("Thread join unsuccessfull");
+            exit(-1);
+        };
     }
 
-    sem_destroy(&bridge);
-    sem_destroy(&mutex);
+    if (sem_destroy(&bridge)==-1){
+        perror("Semaphore cant be destroyed");
+        exit(-1);
+    };
+    if (sem_destroy(&mutex)==-1){
+        perror("Semaphore cant be destroyed");
+        exit(-1);
+    };
 
     return 0;
 }

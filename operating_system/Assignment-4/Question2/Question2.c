@@ -2,110 +2,200 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <unistd.h>
+#include <unistd.h> 
 
-#define MAX_PASSENGERS 100
+int total_passengers ;
+int capacity ;
 
-int passenger_count = 0;  // Number of passengers on the car
-int capacity;             // Maximum capacity of the car
-sem_t loading, unloading; // Semaphores for loading and unloading
-pthread_mutex_t mutex;    // Mutex to protect passenger_count
 
-void load() {
-    printf("Car is loading passengers.\n");
-    sleep(2); // Simulate loading time
-}
 
-void unload() {
-    printf("Car is unloading passengers.\n");
-    sleep(2); // Simulate unloading time
-}
 
-void board(int passenger_id) {
-    printf("Passenger %d is boarding.\n", passenger_id);
-    sleep(1); // Simulate boarding time
-}
+sem_t car_semaphore ;
 
-void offboard(int passenger_id) {
-    printf("Passenger %d is getting off.\n", passenger_id);
-    sleep(1); // Simulate getting off time
-}
+sem_t lock  ;
+ 
+sem_t loading_check  ;
 
-void *car(void *args) {
-    while (1) {
-        sem_wait(&loading); // Wait for passengers to load
-        load();             // Load passengers
-        sem_post(&unloading); // Signal passengers to unload
-        unload();            // Unload passengers
+sem_t unloading_check ;
+
+sem_t capacity_check ; 
+
+
+int current_capacity = 0; 
+
+int current_threads = 0 ;
+
+
+void load(){
+    while(current_threads < total_passengers){
+
     }
-    return NULL;
+    printf("car is loading ..\n") ;
+    sleep(1) ;
 }
 
-void *passenger(void *args) {
-    int passenger_id = *((int *)args);
-    while (1) {
-        pthread_mutex_lock(&mutex);
-        if (passenger_count < capacity) {
-            passenger_count++;
-            board(passenger_id);
-            pthread_mutex_unlock(&mutex);
+void unload(){
 
-            sem_post(&loading); // Signal car that passenger has boarded
-            sem_wait(&unloading); // Wait for car to finish unloading
+    printf("car is unloading ..\n" ) ;
+    sleep(1) ;
+}
+void* car(void* args){
+    while(1){
+        load() ;
+        sem_post(&loading_check) ;
+        while(current_capacity != capacity) {
+           // printf("passengers are boarding ..") ;
+        }
+        sem_wait(&loading_check) ;
+        sem_wait(&capacity_check) ;
+        printf("Car is running ..\n") ;
+        sleep(1) ;
+        unload() ;
+        sem_post(&unloading_check) ;
 
-            offboard(passenger_id);
+        while(current_capacity != 0 ){
 
-            pthread_mutex_lock(&mutex);
-            passenger_count--;
-            pthread_mutex_unlock(&mutex);
-        } else {
-            pthread_mutex_unlock(&mutex);
+            //printf("passengers are unboarding ..") ;
+
         }
 
-        // Sleep to simulate some time before the next attempt
-        sleep(1);
+        sem_post(&lock) ;
+
+        for(int i = 0 ;i< capacity ;i++) {
+
+            sem_post(&car_semaphore) ;
+
+
+
+        }
+
+        sem_wait(&lock) ;
+
+        sem_wait(&unloading_check) ;
+
+        sem_post(&capacity_check) ;
+
+
+
+
     }
-    return NULL;
+
+
+    pthread_exit(NULL) ;
+
 }
 
-int main() {
-    int num_passengers;
+void board(int id){
+    sem_wait(&lock) ;
 
-    printf("Enter the capacity of the car: ");
-    scanf("%d", &capacity);
+    printf("passenger %d is curently boarding the car..\n",id) ;
+    sleep(1) ;
+    current_capacity += 1 ;
+    
+    sem_post(&lock) ;
 
-    printf("Enter the total number of passengers: ");
-    scanf("%d", &num_passengers);
+}
 
-    if (num_passengers > MAX_PASSENGERS) {
-        printf("Number of passengers exceeds maximum limit.\n");
-        return 1;
+void offboard(int id){
+    sem_wait(&lock) ;
+
+    printf("passenger %d is curently unboarding the car..\n",id) ;
+    sleep(1) ;
+    current_capacity -= 1 ;
+    
+    sem_post(&lock) ;
+
+
+}
+
+void* passengers(void* args){
+    while(1){
+
+        current_threads += 1 ;
+        sem_wait(&car_semaphore) ;
+
+        sem_wait(&loading_check) ;
+
+        board(*(int*)args) ;
+
+    
+        sem_post(&loading_check) ;
+
+        sem_wait(&unloading_check) ;
+
+        offboard(*(int*) args) ;
+
+        sem_post(&unloading_check) ;
+
     }
 
-    pthread_t car_thread, passenger_threads[MAX_PASSENGERS];
-    int passenger_ids[MAX_PASSENGERS];
+    pthread_exit(NULL) ;
 
-    sem_init(&loading, 0, 0);
-    sem_init(&unloading, 0, 0);
-    pthread_mutex_init(&mutex, NULL);
+}
 
-    pthread_create(&car_thread, NULL, car, NULL);
 
-    for (int i = 0; i < num_passengers; i++) {
-        passenger_ids[i] = i + 1;
-        pthread_create(&passenger_threads[i], NULL, passenger, &passenger_ids[i]);
+
+int main (){
+    
+    printf("Give input for total number of passengers: ") ;
+    scanf("%d",&total_passengers) ;
+    printf("Give input for capacity of car: ") ;
+    scanf("%d",&capacity) ;
+    
+    if(total_passengers<0 || capacity <0 || total_passengers < capacity){
+        printf("this is a wrong input\n") ;
+    }
+    else{
+
+        //making semaphore for car .. 
+        sem_init(&car_semaphore , 0 , capacity) ;
+        //making semahore for implementing lock .. 
+        sem_init(&lock , 0 , 1) ;
+        //making semaphore to check loading process .. 
+        sem_init( &loading_check,0 , 0) ; 
+        //making semaphore to check unloading process .. 
+        sem_init(&unloading_check , 0 , 0) ;
+        //making semaphore to check capacity .. 
+        sem_init( &capacity_check , 0  , 1);
+        
+
+        pthread_t  my_passenger[total_passengers] ;
+
+        int id[total_passengers] ;
+
+        for(int i = 0;i<total_passengers ;i++){
+
+            id[i] = i ;
+            pthread_create(&my_passenger[i] , NULL , passengers , &id[i]) ;
+        
+        }        
+        
+        pthread_t my_car ;
+
+        pthread_create(&my_car,NULL, car ,NULL) ;
+
+        for(int i = 0 ;i<total_passengers ;i++){
+    
+            pthread_join(my_passenger[i],NULL) ;
+     
+        }
+
+        pthread_join(my_car , NULL) ;
+
+
+        sem_destroy(&car_semaphore) ;
+        //destroying semaphore for car .. 
+        sem_destroy(&lock) ;
+        //destroying semaphore for implementing lock .. 
+        sem_destroy(&loading_check) ;
+        //destroying semaphore for implementing loding check .. 
+        sem_destroy(&unloading_check) ;
+        //destroying semaphore for implementing unloading check .. 
+        sem_destroy(&capacity_check) ;
+        //destroying semaphore for implementing capacity .. 
+        
     }
 
-    pthread_join(car_thread, NULL);
-
-    for (int i = 0; i < num_passengers; i++) {
-        pthread_join(passenger_threads[i], NULL);
-    }
-
-    sem_destroy(&loading);
-    sem_destroy(&unloading);
-    pthread_mutex_destroy(&mutex);
-
-    return 0;
+    return 0 ;
 }
 
