@@ -7,7 +7,7 @@ pthread_mutex_t forks[5];
 pthread_mutex_t bowl[2];
 pthread_mutex_t mutex;
 pthread_cond_t bowl_condition[2];
-int bowl_available[2] = {1, 1};
+int bowl_available[2] = {1, 1}; 
 
 int left(int p) {
     return p;
@@ -64,9 +64,11 @@ void* philosopher(void* args) {
             }
      //       printf("%d\n",bowl_id) ;
             if (bowl_id == -1) {
-                pthread_mutex_unlock(&forks[right_fork]);
-                pthread_mutex_unlock(&forks[left_fork]);
+                // pthread_mutex_unlock(&forks[right_fork]);
+                // pthread_mutex_unlock(&forks[left_fork]);
                 pthread_cond_wait(&bowl_condition[0], &mutex);
+                bowl_id = 0 ;
+                pthread_mutex_lock(&bowl[0]) ;
             }
         }
         pthread_mutex_unlock(&mutex);
@@ -78,7 +80,9 @@ void* philosopher(void* args) {
         pthread_mutex_lock(&mutex);
         bowl_available[bowl_id] = 1;
         pthread_mutex_unlock(&mutex);
-        pthread_cond_signal(&bowl_condition[0]);
+        if(bowl_id == 0 ){
+            pthread_cond_signal(&bowl_condition[0]);
+        }
         if(id%2 ==0){
             pthread_mutex_unlock(&forks[right_fork]);
             printf("Philosopher %d is dropping fork %d\n",id,right_fork) ;    

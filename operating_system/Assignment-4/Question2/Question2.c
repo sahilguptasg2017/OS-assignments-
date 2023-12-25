@@ -8,7 +8,13 @@ int total_passengers ;
 int capacity ;
 
 
+sem_t passenger_sem ;
 
+sem_t boarding ; 
+
+sem_t offboarding ; 
+
+sem_t waiting  ;
 
 sem_t car_semaphore ;
 
@@ -142,7 +148,7 @@ int main (){
     printf("Give input for capacity of car: ") ;
     scanf("%d",&capacity) ;
     
-    if(total_passengers<0 || capacity <0 || total_passengers < capacity){
+    if(total_passengers<0 || capacity <0 || total_passengers <= capacity){
         printf("this is a wrong input\n") ;
     }
     else{
@@ -158,6 +164,13 @@ int main (){
         //making semaphore to check capacity .. 
         sem_init( &capacity_check , 0  , 1);
         
+        sem_init(&passenger_sem,0,0) ;
+        
+        sem_init(&waiting,0,1) ;
+
+        sem_init(&boarding,0,0 ) ;
+
+        sem_init(&offboarding,0, 1) ;        
 
         pthread_t  my_passenger[total_passengers] ;
 

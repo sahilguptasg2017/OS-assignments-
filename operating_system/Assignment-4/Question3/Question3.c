@@ -84,9 +84,13 @@ void passing(int dir, int car_num) {
         waiting_left++;
         sem_post(&mutex);
         sem_wait(&bridge);
+        int flag = 0 ;
         while(tmpr<5 || tmpl<=0){
-            sleep(
-                3);
+            if(flag++ == 0){
+                printf("Car with id %d is waiting on left side as no space left on bridge .. \n" , car_num) ;
+            // sleep(
+            //     1);
+            }
         }
         sem_wait(&leftlock);
         // pthread_mutex_lock(&leftlock);
@@ -147,8 +151,12 @@ void passing(int dir, int car_num) {
         sem_post(&mutex);
 
         sem_wait(&bridge);
+        int flag = 0 ;
         while(tmpl<5 || tmpr<=0){
-            sleep(1);
+            if(flag++ == 0){
+                printf("Car with id %d is waiting on right side as no space left on bridge .. \n" , car_num) ;
+            // sleep(1);
+            }
         }
         sem_wait(&rightlock);
         // pthread_mutex_lock(&rightlock);
