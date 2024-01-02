@@ -1,6 +1,9 @@
 ### Operating Systems Assignments Repository
 Welcome to my repository for OS Assignments completed during the 3rd semester! This collection serves as a valuable reference for both myself and others, showcasing the concepts learned throughout the course.
 
+## About the Assignment Topic
+The topics and descriptions for each of the four assignments have been provided in their respective ```.md``` files.
+
 ## Disclaimer
 Please use this repository responsibly and strictly as a source of reference. The intention is to provide assistance and insight into the concepts covered during the course. Do not submit the work as your own without proper understanding or modification.
 
